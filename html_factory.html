@@ -6,20 +6,114 @@
   <title>WhisPTT Agent Factory</title>
   <link rel="stylesheet" href="assets/css/theme.css">
   <style>
-    .factory-layout {
-      display: grid;
-      gap: 12px;
+    .factory-shell {
+      width: min(98vw, 1760px);
+      min-height: min(94vh, 980px);
+      border-radius: 24px;
+      border: 1px solid rgba(99, 255, 131, 0.24);
+      background:
+        radial-gradient(circle at top left, rgba(122, 255, 244, 0.09), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(99, 255, 131, 0.08), transparent 28%),
+        linear-gradient(180deg, rgba(7, 12, 7, 0.98), rgba(2, 4, 2, 0.98));
+      box-shadow: var(--shadow-outer);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .factory-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 108px;
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid rgba(99, 255, 131, 0.14);
+      background: linear-gradient(180deg, rgba(122, 255, 244, 0.1), rgba(99, 255, 131, 0.03));
+    }
+
+    .banner-center {
+      display: flex;
+      align-items: center;
+      gap: 42px;
+    }
+
+    .banner-actions {
+      display: flex;
+      align-items: center;
+      gap: 56px;
+    }
+
+    .banner-action-button {
+      width: 86px;
+      height: 86px;
+      border-radius: 999px;
+      border: 1px solid rgba(122, 255, 244, 0.5);
+      background: linear-gradient(180deg, rgba(20, 32, 20, 0.95), rgba(7, 12, 7, 0.96));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 18px rgba(122, 255, 244, 0.18);
+      cursor: pointer;
+    }
+
+    .banner-action-button img {
+      width: 50px;
+      height: 50px;
+    }
+
+    .banner-logo-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .banner-logo {
+      max-height: 92px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .factory-grid-shell {
       flex: 1;
       min-height: 0;
-    }
-
-    .factory-panel {
-      padding: 14px;
       display: grid;
+      grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.2fr) minmax(340px, 0.9fr);
       gap: 12px;
+      padding: 14px;
+      overflow-x: auto;
     }
 
-    .factory-grid {
+    .pane {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--panel-edge);
+      border-radius: 20px;
+      background: var(--panel-bg);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .pane h2 {
+      margin: 0;
+      font-size: calc(0.84rem + 4pt);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--matrix-cyan);
+      text-align: center;
+    }
+
+    .factory-copy {
+      margin: 0;
+      color: var(--text-soft);
+      line-height: 1.64;
+    }
+
+    .factory-cards {
+      min-height: 0;
+      overflow: auto;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
@@ -32,6 +126,8 @@
       background: linear-gradient(180deg, rgba(17, 24, 17, 0.95), rgba(8, 11, 8, 0.95));
       cursor: pointer;
       transition: transform 140ms ease, border-color 140ms ease, box-shadow 180ms ease;
+      text-align: left;
+      color: inherit;
     }
 
     .factory-card:hover,
@@ -57,91 +153,123 @@
       color: var(--text-soft);
     }
 
-    .settings-grid {
+    .settings-stack {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
+      align-content: start;
     }
 
-    .factory-footer {
+    .factory-status {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      min-height: 1.2rem;
+      line-height: 1.55;
+    }
+
+    .settings-actions {
       display: flex;
-      flex-wrap: wrap;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
-    @media (max-width: 760px) {
-      .factory-grid,
-      .settings-grid {
-        grid-template-columns: 1fr;
+    .desktop-bottom-nav {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px 14px;
+      border-top: 1px solid rgba(99, 255, 131, 0.12);
+      background: linear-gradient(180deg, rgba(8, 12, 8, 0.82), rgba(5, 8, 5, 0.94));
+    }
+
+    .desktop-bottom-nav .bottom-nav__item {
+      width: 46px;
+      height: 46px;
+    }
+
+    @media (max-width: 1300px) {
+      .factory-grid-shell {
+        grid-template-columns: 320px minmax(720px, 1fr) minmax(340px, 0.9fr);
       }
     }
   </style>
 </head>
 <body>
-  <div class="app-shell">
-    <header class="top-banner">
-      <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT logo" class="top-banner__logo">
+  <div class="factory-shell">
+    <header class="factory-header">
+      <div class="banner-center">
+        <div class="banner-actions" aria-label="Desktop quick actions">
+          <button class="banner-action-button" type="button" aria-label="Bot">
+            <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="">
+          </button>
+          <button class="banner-action-button" type="button" aria-label="Chat">
+            <img src="assets/svg-assets/lower-menu-svg-icons/L2-chat-menu.svg" alt="">
+          </button>
+          <button class="banner-action-button" type="button" aria-label="Mic">
+            <img src="assets/svg-assets/action-menu-svg-icons/mic-classic-radio.svg" alt="">
+          </button>
+        </div>
+        <div class="banner-logo-wrap">
+          <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT" class="banner-logo">
+        </div>
+      </div>
     </header>
 
-    <main class="screen">
-      <div class="factory-layout">
-        <section class="factory-panel" aria-label="Factory overview">
-          <div class="status-bar">
-            <span class="timer">Agent Factory</span>
-            <span class="chip chip--accent" id="factory-thread-chip">No active stack</span>
-          </div>
-          <p class="panel-copy">
-            Tune the local agent harness for the redline workspace. Gemini Flash is the default answering model,
-            while OpenClaw maps to the Telegram lane stub until the bot token goes live.
-          </p>
-        </section>
+    <main class="factory-grid-shell">
+      <section class="pane">
+        <h2>Factory</h2>
+        <div class="chip-row">
+          <span class="chip chip--accent" id="factory-thread-chip">No active stack</span>
+          <span class="chip" id="factory-agent-chip">Gemini Flash selected</span>
+        </div>
+        <p class="factory-copy">
+          Tune the local agent harness for the redline workspace. Gemini Flash is default. OpenClaw maps to Telegram stub until token is live.
+        </p>
+      </section>
 
-        <section class="factory-panel" aria-label="Available agent presets">
-          <div class="status-bar">
-            <span class="timer">Presets</span>
-            <span class="chip" id="factory-agent-chip">Vanilla selected</span>
-          </div>
-          <div class="factory-grid" id="factory-grid"></div>
-        </section>
+      <section class="pane">
+        <h2>Presets</h2>
+        <div class="factory-cards" id="factory-grid"></div>
+      </section>
 
-        <section class="factory-panel" aria-label="Dispatch settings">
-          <div class="status-bar">
-            <span class="timer">Dispatch Settings</span>
-            <span class="chip" id="factory-response-chip">Text only</span>
-          </div>
-          <div class="settings-grid">
-            <label>
-              <span class="panel-kicker">Send Mode</span>
-              <select id="factory-input-mode">
-                <option value="snippet">Active snippet</option>
-                <option value="thread">Whole thread</option>
-              </select>
-            </label>
-            <label>
-              <span class="panel-kicker">Reply Mode</span>
-              <select id="factory-response-mode">
-                <option value="text_only">Text only</option>
-                <option value="voice_text">Voice + text</option>
-              </select>
-            </label>
-            <label>
-              <span class="panel-kicker">Voice Flow</span>
-              <select id="factory-auto-send">
-                <option value="off">Record only</option>
-                <option value="on">Push+Send after record</option>
-              </select>
-            </label>
-          </div>
-          <p class="status-text" id="factory-status">Saved settings sync with the redline workspace through local storage.</p>
-          <div class="factory-footer">
+      <section class="pane">
+        <h2>Dispatch</h2>
+        <div class="settings-stack">
+          <label>
+            <span class="panel-kicker">Send Mode</span>
+            <select id="factory-input-mode">
+              <option value="snippet">Active snippet</option>
+              <option value="thread">Whole thread</option>
+            </select>
+          </label>
+          <label>
+            <span class="panel-kicker">Reply Mode</span>
+            <select id="factory-response-mode">
+              <option value="text_only">Text only</option>
+              <option value="voice_text">Voice + text</option>
+            </select>
+          </label>
+          <label>
+            <span class="panel-kicker">Voice Flow</span>
+            <select id="factory-auto-send">
+              <option value="off">Record only</option>
+              <option value="on">Push+Send after record</option>
+            </select>
+          </label>
+          <span class="chip" id="factory-response-chip">Text only</span>
+          <p class="factory-status" id="factory-status">Saved settings sync with the redline workspace through local storage.</p>
+          <div class="settings-actions">
             <button class="action-button" type="button" id="open-workspace">Open Redline</button>
             <button class="action-button" type="button" id="focus-openclaw">Feature OpenClaw</button>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
 
-    <nav class="bottom-nav" aria-label="Primary navigation">
+    <div class="desktop-bottom-nav" aria-label="Primary navigation">
       <button class="bottom-nav__item" type="button" aria-label="Relay" id="nav-chat">
         <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="Relay" class="bottom-nav__icon">
       </button>
@@ -157,7 +285,7 @@
       <button class="bottom-nav__item" type="button" aria-label="Android" id="nav-android">
         <img src="assets/svg-assets/lower-menu-svg-icons/R2-android-menu.svg" alt="Android" class="bottom-nav__icon">
       </button>
-    </nav>
+    </div>
   </div>
 
   <script src="assets/js/factory.js"></script>

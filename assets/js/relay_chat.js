@@ -594,34 +594,48 @@
   }
 
   function bindEvents() {
-    ui.newLocalConversation.addEventListener("click", () => {
-      createConversation("local").catch((error) => setComposerStatus(error.message, "error"));
-    });
-    ui.newOpenclawConversation.addEventListener("click", () => {
-      createConversation("telegram_openclaw").catch((error) => setComposerStatus(error.message, "error"));
-    });
+    if (ui.newLocalConversation) {
+      ui.newLocalConversation.addEventListener("click", () => {
+        createConversation("local").catch((error) => setComposerStatus(error.message, "error"));
+      });
+    }
+    if (ui.newOpenclawConversation) {
+      ui.newOpenclawConversation.addEventListener("click", () => {
+        createConversation("telegram_openclaw").catch((error) => setComposerStatus(error.message, "error"));
+      });
+    }
     if (ui.newGeminiConversation) {
       ui.newGeminiConversation.addEventListener("click", () => {
         createConversation("gemini_flash_channel").catch((error) => setComposerStatus(error.message, "error"));
       });
     }
-    ui.switchConversation.addEventListener("click", () => {
-      cycleConversation().catch((error) => setComposerStatus(error.message, "error"));
-    });
-    ui.saveConversationTitle.addEventListener("click", () => {
-      saveConversationTitle().catch((error) => setComposerStatus(error.message, "error"));
-    });
-    ui.modeTimeline.addEventListener("click", () => {
-      state.displayMode = "timeline";
-      renderModeButtons();
-      renderFeed();
-    });
-    ui.modeThread.addEventListener("click", () => {
-      state.displayMode = "thread";
-      renderModeButtons();
-      renderFeed();
-    });
-    ui.senderSelect.addEventListener("change", syncSenderChip);
+    if (ui.switchConversation) {
+      ui.switchConversation.addEventListener("click", () => {
+        cycleConversation().catch((error) => setComposerStatus(error.message, "error"));
+      });
+    }
+    if (ui.saveConversationTitle) {
+      ui.saveConversationTitle.addEventListener("click", () => {
+        saveConversationTitle().catch((error) => setComposerStatus(error.message, "error"));
+      });
+    }
+    if (ui.modeTimeline) {
+      ui.modeTimeline.addEventListener("click", () => {
+        state.displayMode = "timeline";
+        renderModeButtons();
+        renderFeed();
+      });
+    }
+    if (ui.modeThread) {
+      ui.modeThread.addEventListener("click", () => {
+        state.displayMode = "thread";
+        renderModeButtons();
+        renderFeed();
+      });
+    }
+    if (ui.senderSelect) {
+      ui.senderSelect.addEventListener("change", syncSenderChip);
+    }
     if (ui.composeTransportSelect) {
       ui.composeTransportSelect.addEventListener("change", () => {
         const transport = ui.composeTransportSelect.value;
@@ -630,9 +644,11 @@
           .catch((error) => setComposerStatus(error.message, "error"));
       });
     }
-    ui.sendTextMessage.addEventListener("click", () => {
-      sendTextMessage().catch((error) => setComposerStatus(error.message, "error"));
-    });
+    if (ui.sendTextMessage) {
+      ui.sendTextMessage.addEventListener("click", () => {
+        sendTextMessage().catch((error) => setComposerStatus(error.message, "error"));
+      });
+    }
     if (ui.sendVoiceChit) {
       ui.sendVoiceChit.addEventListener("click", () => {
         if (state.isRecording) {
@@ -642,38 +658,58 @@
         }
       });
     }
-    ui.playConversation.addEventListener("click", () => {
-      playConversation().catch((error) => setPlaybackStatus(error.message, "error"));
-    });
-    ui.stopPlayback.addEventListener("click", () => {
-      stopPlaybackInternals();
-      setPlaybackStatus("Playback stopped.");
-    });
-    ui.clearConversationOutput.addEventListener("click", () => {
-      ui.messageEditor.value = "";
-      setComposerStatus("Composer cleared.");
-    });
-    ui.openRedline.addEventListener("click", () => {
-      window.location.href = "html_redline.html";
-    });
-    ui.openFactory.addEventListener("click", () => {
-      window.location.href = "html_factory.html";
-    });
-    ui.navChat.addEventListener("click", () => {
-      window.location.href = "html_chat.html";
-    });
-    ui.navProfile.addEventListener("click", () => {
-      window.location.href = "html_profile.html";
-    });
-    ui.navRecorder.addEventListener("click", () => {
-      window.location.href = "html_redline.html";
-    });
-    ui.navEditor.addEventListener("click", () => {
-      window.location.href = "html_factory.html";
-    });
-    ui.navAndroid.addEventListener("click", () => {
-      window.location.href = "html_android.html";
-    });
+    if (ui.playConversation) {
+      ui.playConversation.addEventListener("click", () => {
+        playConversation().catch((error) => setPlaybackStatus(error.message, "error"));
+      });
+    }
+    if (ui.stopPlayback) {
+      ui.stopPlayback.addEventListener("click", () => {
+        stopPlaybackInternals();
+        setPlaybackStatus("Playback stopped.");
+      });
+    }
+    if (ui.clearConversationOutput) {
+      ui.clearConversationOutput.addEventListener("click", () => {
+        ui.messageEditor.value = "";
+        setComposerStatus("Composer cleared.");
+      });
+    }
+    if (ui.openRedline) {
+      ui.openRedline.addEventListener("click", () => {
+        window.location.href = "html_redline.html";
+      });
+    }
+    if (ui.openFactory) {
+      ui.openFactory.addEventListener("click", () => {
+        window.location.href = "html_factory.html";
+      });
+    }
+    if (ui.navChat) {
+      ui.navChat.addEventListener("click", () => {
+        window.location.href = "html_chat.html";
+      });
+    }
+    if (ui.navProfile) {
+      ui.navProfile.addEventListener("click", () => {
+        window.location.href = "html_profile.html";
+      });
+    }
+    if (ui.navRecorder) {
+      ui.navRecorder.addEventListener("click", () => {
+        window.location.href = "html_redline.html";
+      });
+    }
+    if (ui.navEditor) {
+      ui.navEditor.addEventListener("click", () => {
+        window.location.href = "html_factory.html";
+      });
+    }
+    if (ui.navAndroid) {
+      ui.navAndroid.addEventListener("click", () => {
+        window.location.href = "html_android.html";
+      });
+    }
   }
 
   async function init() {

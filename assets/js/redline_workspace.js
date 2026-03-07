@@ -64,6 +64,8 @@
     saveThreadTitle: document.getElementById("save-thread-title"),
     copyThread: document.getElementById("copy-thread"),
     exportThread: document.getElementById("export-thread"),
+    snippetCopyInline: document.getElementById("snippet-copy-inline"),
+    snippetDownloadInline: document.getElementById("snippet-download-inline"),
     clearActiveThread: document.getElementById("clear-active-thread"),
     pushSnippetDispatch: document.getElementById("push-snippet-dispatch"),
     pushThreadDispatch: document.getElementById("push-thread-dispatch"),
@@ -82,7 +84,7 @@
         return { ...DEFAULT_PREFS };
       }
       const parsed = JSON.parse(raw);
-      return { ...DEFAULT_PREFS, ...(parsed || {}) };
+      return { ...DEFAULT_PREFS, ...(parsed || {}), responseMode: "text_only" };
     } catch (error) {
       console.warn("Failed to load prefs", error);
       return { ...DEFAULT_PREFS };
@@ -168,15 +170,28 @@
       .replace(/>/g, "&gt;");
   }
 
+  function compactText(value) {
+    return (value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function deriveChatTitle(firstChitText, fallbackTitle) {
+    const compact = compactText(firstChitText);
+    if (compact) {
+      return compact.slice(0, 20);
+    }
+    return fallbackTitle || "New Chat";
+  }
+
   function renderThreads() {
     ui.threadCountChip.textContent = `${state.threads.length} stack${state.threads.length === 1 ? "" : "s"}`;
     ui.threadList.innerHTML = "";
     state.threads.forEach((thread) => {
+      const displayTitle = deriveChatTitle(thread.first_chit_text, thread.title);
       const button = document.createElement("button");
       button.type = "button";
       button.className = `thread-card${thread.is_active ? " thread-card--active" : ""}`;
       button.innerHTML = `
-        <p class="thread-card__title">${escapeHtml(thread.title)}</p>
+        <p class="thread-card__title">${escapeHtml(displayTitle)}</p>
         <p class="thread-card__meta">${thread.snippet_count} snippet${thread.snippet_count === 1 ? "" : "s"}</p>
         <p class="thread-card__preview">${escapeHtml(thread.latest_snippet_preview || "Waiting for input")}</p>
       `;
@@ -187,19 +202,35 @@
 
   function renderSnippets() {
     const detail = state.activeThread;
-    ui.snippetList.innerHTML = "";
+    if (ui.snippetList) {
+      ui.snippetList.innerHTML = "";
+    }
     const snippets = detail ? detail.snippets : [];
-    ui.snippetPlaceholder.style.display = snippets.length ? "none" : "block";
+    if (ui.snippetPlaceholder) {
+      ui.snippetPlaceholder.style.display = snippets.length ? "none" : "block";
+    }
     if (!detail) {
-      ui.activeThreadChip.textContent = "No active stack";
-      ui.snippetCountChip.textContent = "0 snippets";
-      ui.activeThreadTimer.textContent = "Active Stack";
+      if (ui.activeThreadChip) {
+        ui.activeThreadChip.textContent = "No active stack";
+      }
+      if (ui.snippetCountChip) {
+        ui.snippetCountChip.textContent = "0 snippets";
+      }
+      if (ui.activeThreadTimer) {
+        ui.activeThreadTimer.textContent = "Active Stack";
+      }
       return;
     }
 
-    ui.activeThreadChip.textContent = detail.thread.title;
-    ui.snippetCountChip.textContent = `${detail.snippets.length} snippet${detail.snippets.length === 1 ? "" : "s"}`;
-    ui.activeThreadTimer.textContent = `Updated ${formatTimestamp(detail.thread.updated_at)}`;
+    if (ui.activeThreadChip) {
+      ui.activeThreadChip.textContent = detail.thread.title;
+    }
+    if (ui.snippetCountChip) {
+      ui.snippetCountChip.textContent = `${detail.snippets.length} snippet${detail.snippets.length === 1 ? "" : "s"}`;
+    }
+    if (ui.activeThreadTimer) {
+      ui.activeThreadTimer.textContent = `Updated ${formatTimestamp(detail.thread.updated_at)}`;
+    }
 
     const orderedSnippets = [...detail.snippets].reverse();
     orderedSnippets.forEach((snippet, index) => {
@@ -207,35 +238,44 @@
         const separator = document.createElement("div");
         separator.className = "snippet-separator";
         separator.textContent = "-------";
-        ui.snippetList.appendChild(separator);
+        if (ui.snippetList) {
+          ui.snippetList.appendChild(separator);
+        }
       }
       const card = document.createElement("button");
       card.type = "button";
       card.className = `snippet-card${snippet.id === state.activeSnippetId ? " snippet-card--active" : ""}`;
       card.innerHTML = `
-        <div class="snippet-card__meta">
-          <span>#${snippet.position} ${escapeHtml(snippet.source)}</span>
-          <span>${formatTimestamp(snippet.updated_at)}</span>
-        </div>
         <p class="snippet-card__text">${escapeHtml(snippet.transcript)}</p>
       `;
       card.addEventListener("click", () => selectSnippet(snippet.id));
-      ui.snippetList.appendChild(card);
+      if (ui.snippetList) {
+        ui.snippetList.appendChild(card);
+      }
     });
   }
 
   function renderEditor() {
     const detail = state.activeThread;
     const activeSnippet = getActiveSnippet();
-    ui.threadTitleInput.value = detail ? detail.thread.title : "";
+    const firstChitText = detail && detail.snippets && detail.snippets.length ? detail.snippets[0].transcript : "";
+    ui.threadTitleInput.value = detail ? deriveChatTitle(firstChitText, detail.thread.title) : "";
     if (activeSnippet) {
-      ui.activeSnippetChip.textContent = `Snippet #${activeSnippet.position}`;
+      if (ui.activeSnippetChip) {
+        ui.activeSnippetChip.textContent = `Snippet #${activeSnippet.position}`;
+      }
       ui.snippetEditor.value = activeSnippet.transcript;
-      ui.saveSnippet.disabled = false;
+      if (ui.saveSnippet) {
+        ui.saveSnippet.disabled = false;
+      }
     } else {
-      ui.activeSnippetChip.textContent = "No snippet selected";
+      if (ui.activeSnippetChip) {
+        ui.activeSnippetChip.textContent = "No snippet selected";
+      }
       ui.snippetEditor.value = "";
-      ui.saveSnippet.disabled = true;
+      if (ui.saveSnippet) {
+        ui.saveSnippet.disabled = true;
+      }
     }
     syncEditorCaretHint();
   }
@@ -249,6 +289,7 @@
   }
 
   function renderAgentPrefs() {
+    state.prefs.responseMode = "text_only";
     if (state.agentOptions.length) {
       const exists = state.agentOptions.some((option) => option.id === state.prefs.agentId);
       if (!exists) {
@@ -258,15 +299,21 @@
     }
     const selectedOption = state.agentOptions.find((option) => option.id === state.prefs.agentId);
     ui.agentPrefChip.textContent = selectedOption ? selectedOption.name : "Gemini Flash";
-    ui.recordingModeChip.textContent = state.prefs.autoSendVoice ? "Push+Send voice" : "Voice capture";
+    if (ui.recordingModeChip) {
+      ui.recordingModeChip.textContent = state.prefs.autoSendVoice ? "Push+Send voice" : "Voice capture";
+    }
     if (ui.responseModeChip) {
       ui.responseModeChip.textContent = state.prefs.responseMode === "voice_text" ? "Reply mode: voice + text" : "Reply mode: text only";
     }
-    ui.autoSendToggle.textContent = `Push+Send Voice: ${state.prefs.autoSendVoice ? "On" : "Off"}`;
-    ui.autoSendToggle.classList.toggle("pill-button--active", state.prefs.autoSendVoice);
+    if (ui.autoSendToggle) {
+      ui.autoSendToggle.textContent = `Push+Send Voice: ${state.prefs.autoSendVoice ? "On" : "Off"}`;
+      ui.autoSendToggle.classList.toggle("pill-button--active", state.prefs.autoSendVoice);
+    }
 
     ui.inputModeSelect.value = state.prefs.inputMode;
-    ui.responseModeSelect.value = state.prefs.responseMode;
+    if (ui.responseModeSelect) {
+      ui.responseModeSelect.value = state.prefs.responseMode;
+    }
     ui.agentSelect.value = state.prefs.agentId;
     savePrefs();
   }
@@ -294,6 +341,17 @@
 
   async function loadThreads() {
     state.threads = await api("/api/threads");
+    await Promise.all(
+      state.threads.map(async (thread) => {
+        try {
+          const detail = await api(`/api/threads/${thread.id}`);
+          const firstChitText = detail && detail.snippets && detail.snippets.length ? detail.snippets[0].transcript : "";
+          thread.first_chit_text = firstChitText || "";
+        } catch (error) {
+          thread.first_chit_text = "";
+        }
+      })
+    );
   }
 
   async function loadActiveThread(options) {
@@ -497,6 +555,45 @@
     setEditorStatus(message, "success");
   }
 
+  async function copyEditorText() {
+    const text = (ui.snippetEditor.value || "").trim();
+    if (!text) {
+      setEditorStatus("Nothing to copy.", "error");
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      setEditorStatus("Copied current chit text.");
+      return;
+    }
+    ui.snippetEditor.select();
+    document.execCommand("copy");
+    setEditorStatus("Copied current chit text.");
+  }
+
+  function downloadEditorText() {
+    const text = (ui.snippetEditor.value || "").trim();
+    if (!text) {
+      setEditorStatus("Nothing to download.", "error");
+      return;
+    }
+    const title = state.activeThread && state.activeThread.thread && state.activeThread.thread.title
+      ? state.activeThread.thread.title
+      : "chit";
+    const safeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "chit";
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${safeTitle}-${stamp}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setEditorStatus("Downloaded current chit text.");
+  }
+
   function stopSpeech() {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -625,16 +722,18 @@
   function applyControlPrefs() {
     state.prefs.agentId = ui.agentSelect.value;
     state.prefs.inputMode = ui.inputModeSelect.value;
-    state.prefs.responseMode = ui.responseModeSelect.value;
+    state.prefs.responseMode = ui.responseModeSelect ? ui.responseModeSelect.value : "text_only";
     savePrefs();
     renderAgentPrefs();
     setAgentStatus(`Active model: ${ui.agentSelect.options[ui.agentSelect.selectedIndex].text}`, "agent-status-text--info");
   }
 
   function bindEvents() {
-    ui.startNewThread.addEventListener("click", () => {
-      createThread().catch((error) => setStatus(error.message, "error"));
-    });
+    if (ui.startNewThread) {
+      ui.startNewThread.addEventListener("click", () => {
+        createThread().catch((error) => setStatus(error.message, "error"));
+      });
+    }
 
     if (ui.startNewThreadInline) {
       ui.startNewThreadInline.addEventListener("click", () => {
@@ -648,42 +747,72 @@
       });
     }
 
-    ui.switchThread.addEventListener("click", () => {
-      cycleThread().catch((error) => setStatus(error.message, "error"));
-    });
+    if (ui.snippetCopyInline) {
+      ui.snippetCopyInline.addEventListener("click", () => {
+        copyEditorText().catch((error) => setEditorStatus(error.message || "Copy failed.", "error"));
+      });
+    }
 
-    ui.saveThreadTitle.addEventListener("click", () => {
-      saveThreadTitle().catch((error) => setEditorStatus(error.message, "error"));
-    });
+    if (ui.snippetDownloadInline) {
+      ui.snippetDownloadInline.addEventListener("click", () => {
+        downloadEditorText();
+      });
+    }
 
-    ui.saveSnippet.addEventListener("click", () => {
-      saveSnippetEdit().catch((error) => setEditorStatus(error.message, "error"));
-    });
+    if (ui.switchThread) {
+      ui.switchThread.addEventListener("click", () => {
+        cycleThread().catch((error) => setStatus(error.message, "error"));
+      });
+    }
 
-    ui.addTextSnippet.addEventListener("click", () => {
-      addTextSnippet().catch((error) => setEditorStatus(error.message, "error"));
-    });
+    if (ui.saveThreadTitle) {
+      ui.saveThreadTitle.addEventListener("click", () => {
+        saveThreadTitle().catch((error) => setEditorStatus(error.message, "error"));
+      });
+    }
 
-    ui.clearActiveThread.addEventListener("click", () => {
-      clearActiveThread().catch((error) => setStatus(error.message, "error"));
-    });
+    if (ui.saveSnippet) {
+      ui.saveSnippet.addEventListener("click", () => {
+        saveSnippetEdit().catch((error) => setEditorStatus(error.message, "error"));
+      });
+    }
 
-    ui.copyThread.addEventListener("click", () => {
-      copyThread().catch((error) => setEditorStatus(error.message, "error"));
-    });
+    if (ui.addTextSnippet) {
+      ui.addTextSnippet.addEventListener("click", () => {
+        addTextSnippet().catch((error) => setEditorStatus(error.message, "error"));
+      });
+    }
 
-    ui.exportThread.addEventListener("click", () => {
-      exportThread().catch((error) => setEditorStatus(error.message, "error"));
-    });
+    if (ui.clearActiveThread) {
+      ui.clearActiveThread.addEventListener("click", () => {
+        clearActiveThread().catch((error) => setStatus(error.message, "error"));
+      });
+    }
 
-    ui.autoSendToggle.addEventListener("click", () => {
-      state.prefs.autoSendVoice = !state.prefs.autoSendVoice;
-      renderAgentPrefs();
-    });
+    if (ui.copyThread) {
+      ui.copyThread.addEventListener("click", () => {
+        copyThread().catch((error) => setEditorStatus(error.message, "error"));
+      });
+    }
 
-    ui.sendToAgent.addEventListener("click", () => {
-      sendToAgent().catch((error) => setAgentStatus(error.message, "agent-status-text--error"));
-    });
+    if (ui.exportThread) {
+      ui.exportThread.addEventListener("click", () => {
+        exportThread().catch((error) => setEditorStatus(error.message, "error"));
+      });
+    }
+
+    if (ui.autoSendToggle) {
+      ui.autoSendToggle.addEventListener("click", () => {
+        state.prefs.autoSendVoice = !state.prefs.autoSendVoice;
+        renderAgentPrefs();
+      });
+    }
+
+    if (ui.sendToAgent) {
+      ui.sendToAgent.addEventListener("click", () => {
+        sendToAgent().catch((error) => setAgentStatus(error.message, "agent-status-text--error"));
+      });
+    }
 
     if (ui.pushSnippetDispatch) {
       ui.pushSnippetDispatch.addEventListener("click", () => {
@@ -710,11 +839,13 @@
       });
     }
 
-    ui.clearAgentOutput.addEventListener("click", () => {
-      stopSpeech();
-      renderAgentOutput("");
-      setAgentStatus("Agent output cleared.");
-    });
+    if (ui.clearAgentOutput) {
+      ui.clearAgentOutput.addEventListener("click", () => {
+        stopSpeech();
+        renderAgentOutput("");
+        setAgentStatus("Agent output cleared.");
+      });
+    }
 
     if (ui.clearAgentIO) {
       ui.clearAgentIO.addEventListener("click", () => {
@@ -744,7 +875,9 @@
 
     ui.agentSelect.addEventListener("change", applyControlPrefs);
     ui.inputModeSelect.addEventListener("change", applyControlPrefs);
-    ui.responseModeSelect.addEventListener("change", applyControlPrefs);
+    if (ui.responseModeSelect) {
+      ui.responseModeSelect.addEventListener("change", applyControlPrefs);
+    }
 
     ui.micButton.addEventListener("click", () => {
       if (state.isRecording) {
@@ -758,9 +891,11 @@
       syncEditorCaretHint();
     });
 
-    ui.syncSettings.addEventListener("click", () => {
-      window.location.href = "html_factory.html";
-    });
+    if (ui.syncSettings) {
+      ui.syncSettings.addEventListener("click", () => {
+        window.location.href = "html_factory.html";
+      });
+    }
 
     ui.navChat.addEventListener("click", () => {
       window.location.href = "html_chat.html";

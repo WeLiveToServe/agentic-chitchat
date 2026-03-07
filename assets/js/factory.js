@@ -6,7 +6,7 @@
 
   const PREFS_KEY = "whisptt.agentPrefs";
   const DEFAULT_PREFS = {
-    agentId: "vanilla",
+    agentId: "gemini_flash",
     inputMode: "snippet",
     responseMode: "text_only",
     autoSendVoice: false,
@@ -96,7 +96,7 @@
 
   function render() {
     renderCards();
-    const activeOption = options.find((option) => option.id === prefs.agentId) || { name: "Vanilla" };
+    const activeOption = options.find((option) => option.id === prefs.agentId) || { name: "Gemini Flash" };
     ui.agentChip.textContent = `${activeOption.name} selected`;
     ui.responseChip.textContent = prefs.responseMode === "voice_text" ? "Voice + text" : "Text only";
     ui.inputMode.value = prefs.inputMode;
@@ -148,7 +148,7 @@
     });
 
     ui.navChat.addEventListener("click", () => {
-      window.location.href = "html_factory.html";
+      window.location.href = "html_chat.html";
     });
     ui.navProfile.addEventListener("click", () => {
       window.location.href = "html_profile.html";

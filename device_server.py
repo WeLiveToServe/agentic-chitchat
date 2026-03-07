@@ -14,6 +14,7 @@ from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 
@@ -21,12 +22,16 @@ from agent_factory import AgentRegistry
 from agents import Runner
 from device.database import (
     ChitRecord,
+    ConversationRecord,
     LiveSegment,
+    MessageRecord,
+    ParticipantRecord,
     SnippetRecord,
     ThreadRecord,
     db_session,
     init_db,
 )
+from device.telegram_bridge import telegram_bridge
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -61,6 +66,7 @@ async def lifespan(_: FastAPI):
     init_db()
     with db_session() as session:
         _get_active_thread(session, create_if_missing=True)
+        _get_active_conversation(session, create_if_missing=True)
     yield
 
 
@@ -73,6 +79,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Path("sessions").mkdir(parents=True, exist_ok=True)
+app.mount("/media/sessions", StaticFiles(directory="sessions"), name="sessions-media")
 
 
 class ChitResponse(BaseModel):
@@ -134,6 +143,7 @@ class SnippetResponse(BaseModel):
     position: int
     source: str
     audio_path: str | None = None
+    audio_url: str | None = None
     transcript: str
     created_at: str
     updated_at: str
@@ -142,6 +152,51 @@ class SnippetResponse(BaseModel):
 class ThreadDetailResponse(BaseModel):
     thread: ThreadSummaryResponse
     snippets: List[SnippetResponse]
+
+
+class ConversationSummaryResponse(BaseModel):
+    id: str
+    title: str
+    transport: str
+    is_active: bool
+    message_count: int
+    latest_message_preview: str
+    created_at: str
+    updated_at: str
+
+
+class ParticipantResponse(BaseModel):
+    id: str
+    conversation_id: str
+    display_name: str
+    handle: str | None = None
+    role: str
+    pfp_label: str
+    pfp_tint: str
+    is_self: bool
+    created_at: str
+    updated_at: str
+
+
+class MessageResponse(BaseModel):
+    id: str
+    conversation_id: str
+    sender_id: str
+    position: int
+    message_type: str
+    transport: str
+    audio_path: str | None = None
+    audio_url: str | None = None
+    transcript: str
+    delivery_state: str
+    created_at: str
+    updated_at: str
+
+
+class ConversationDetailResponse(BaseModel):
+    conversation: ConversationSummaryResponse
+    participants: List[ParticipantResponse]
+    messages: List[MessageResponse]
 
 
 class CreateThreadRequest(BaseModel):
@@ -161,6 +216,22 @@ class UpdateSnippetRequest(BaseModel):
     transcript: str
 
 
+class CreateConversationRequest(BaseModel):
+    title: str | None = None
+    transport: str = "local"
+    friend_name: str | None = None
+
+
+class UpdateConversationRequest(BaseModel):
+    title: str
+
+
+class CreateMessageRequest(BaseModel):
+    sender_id: str
+    transcript: str
+    message_type: str = "text"
+
+
 class AgentOptionResponse(BaseModel):
     id: str
     name: str
@@ -169,7 +240,7 @@ class AgentOptionResponse(BaseModel):
 
 
 class AgentRequest(BaseModel):
-    agent_id: str = "vanilla"
+    agent_id: str = "gemini_flash"
     input_mode: str = "thread"
     thread_id: str | None = None
     snippet_id: str | None = None
@@ -187,6 +258,13 @@ class AgentResponse(BaseModel):
     output_voice_text: str | None = None
     mocked: bool = True
     session_id: str | None = None
+
+
+class TelegramStatusResponse(BaseModel):
+    configured: bool
+    token_present: bool
+    chat_id_present: bool
+    bot_name: str
 
 
 try:
@@ -208,7 +286,7 @@ def _preview(text: str, limit: int = 84) -> str:
     compact = " ".join((text or "").split())
     if len(compact) <= limit:
         return compact
-    return compact[: limit - 1].rstrip() + "…"
+    return compact[: limit - 3].rstrip() + "..."
 
 
 def _default_thread_title(now: datetime | None = None) -> str:
@@ -216,8 +294,33 @@ def _default_thread_title(now: datetime | None = None) -> str:
     return f"STACK {stamp}"
 
 
+def _default_conversation_title(transport: str, now: datetime | None = None) -> str:
+    stamp = (now or datetime.now(timezone.utc)).strftime("%H%M")
+    if transport == "telegram_openclaw":
+        return f"OPENCLAW CHANNEL {stamp}"
+    return f"VOICE RELAY {stamp}"
+
+
+def _media_url(audio_path: str | None) -> str | None:
+    if not audio_path:
+        return None
+    path = Path(audio_path)
+    try:
+        relative = path.resolve().relative_to(Path("sessions").resolve())
+    except Exception:
+        try:
+            relative = Path(audio_path).relative_to("sessions")
+        except Exception:
+            return None
+    return f"/media/sessions/{relative.as_posix()}"
+
+
 def _touch_thread(thread: ThreadRecord) -> None:
     thread.updated_at = datetime.now(timezone.utc)
+
+
+def _touch_conversation(conversation: ConversationRecord) -> None:
+    conversation.updated_at = datetime.now(timezone.utc)
 
 
 def _activate_thread(session, thread: ThreadRecord) -> None:
@@ -242,6 +345,124 @@ def _get_active_thread(session, create_if_missing: bool = True) -> ThreadRecord:
     if thread is None:
         raise HTTPException(status_code=404, detail="No active thread")
     return thread
+
+
+def _activate_conversation(session, conversation: ConversationRecord) -> None:
+    session.query(ConversationRecord).filter(ConversationRecord.is_active.is_(True)).update({"is_active": False})
+    conversation.is_active = True
+    _touch_conversation(conversation)
+    session.add(conversation)
+    session.flush()
+
+
+def _conversation_participant_specs(transport: str, friend_name: str | None = None) -> list[dict]:
+    if transport == "telegram_openclaw":
+        return [
+            {
+                "display_name": "You",
+                "handle": "@you",
+                "role": "self",
+                "pfp_label": "YOU",
+                "pfp_tint": "rgba(99, 255, 131, 0.22)",
+                "is_self": True,
+            },
+            {
+                "display_name": "OpenClaw",
+                "handle": "@openclaw",
+                "role": "agent",
+                "pfp_label": "OC",
+                "pfp_tint": "rgba(122, 255, 244, 0.22)",
+                "is_self": False,
+            },
+        ]
+    partner_name = (friend_name or "Trusted Friend").strip() or "Trusted Friend"
+    initials = "".join(chunk[:1] for chunk in partner_name.split()[:2]).upper() or "TF"
+    return [
+        {
+            "display_name": "You",
+            "handle": "@you",
+            "role": "self",
+            "pfp_label": "YOU",
+            "pfp_tint": "rgba(99, 255, 131, 0.22)",
+            "is_self": True,
+        },
+        {
+            "display_name": partner_name,
+            "handle": "@friend",
+            "role": "friend",
+            "pfp_label": initials,
+            "pfp_tint": "rgba(255, 211, 110, 0.22)",
+            "is_self": False,
+        },
+    ]
+
+
+def _seed_conversation_participants(session, conversation: ConversationRecord, friend_name: str | None = None) -> list[ParticipantRecord]:
+    participants: list[ParticipantRecord] = []
+    for spec in _conversation_participant_specs(conversation.transport, friend_name):
+        participant = ParticipantRecord(conversation_id=conversation.id, **spec)
+        session.add(participant)
+        participants.append(participant)
+    session.flush()
+    return participants
+
+
+def _get_active_conversation(session, create_if_missing: bool = True) -> ConversationRecord:
+    conversation = (
+        session.query(ConversationRecord)
+        .filter(ConversationRecord.is_active.is_(True))
+        .order_by(ConversationRecord.updated_at.desc())
+        .first()
+    )
+    if conversation is None and create_if_missing:
+        conversation = ConversationRecord(
+            title=_default_conversation_title("local"),
+            transport="local",
+            is_active=True,
+        )
+        session.add(conversation)
+        session.flush()
+        _seed_conversation_participants(session, conversation)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="No active conversation")
+    return conversation
+
+
+def _get_conversation(session, conversation_id: str) -> ConversationRecord:
+    conversation = session.query(ConversationRecord).filter(ConversationRecord.id == conversation_id).one_or_none()
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conversation
+
+
+def _get_participant(session, participant_id: str) -> ParticipantRecord:
+    participant = session.query(ParticipantRecord).filter(ParticipantRecord.id == participant_id).one_or_none()
+    if participant is None:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    return participant
+
+
+def _list_conversation_participants(session, conversation_id: str) -> List[ParticipantRecord]:
+    return (
+        session.query(ParticipantRecord)
+        .filter(ParticipantRecord.conversation_id == conversation_id)
+        .order_by(ParticipantRecord.is_self.desc(), ParticipantRecord.created_at.asc())
+        .all()
+    )
+
+
+def _list_messages(session, conversation_id: str) -> List[MessageRecord]:
+    return (
+        session.query(MessageRecord)
+        .filter(MessageRecord.conversation_id == conversation_id)
+        .order_by(MessageRecord.position.asc(), MessageRecord.created_at.asc())
+        .all()
+    )
+
+
+def _next_message_position(session, conversation_id: str) -> int:
+    count = session.query(MessageRecord).filter(MessageRecord.conversation_id == conversation_id).count()
+    return count + 1
 
 
 def _get_thread(session, thread_id: str) -> ThreadRecord:
@@ -279,6 +500,7 @@ def _snippet_payload(snippet: SnippetRecord) -> SnippetResponse:
         position=snippet.position,
         source=snippet.source,
         audio_path=snippet.audio_path,
+        audio_url=_media_url(snippet.audio_path),
         transcript=snippet.transcript,
         created_at=_iso(snippet.created_at),
         updated_at=_iso(snippet.updated_at),
@@ -307,9 +529,112 @@ def _thread_detail_payload(session, thread: ThreadRecord) -> ThreadDetailRespons
     )
 
 
+def _participant_payload(participant: ParticipantRecord) -> ParticipantResponse:
+    return ParticipantResponse(
+        id=participant.id,
+        conversation_id=participant.conversation_id,
+        display_name=participant.display_name,
+        handle=participant.handle,
+        role=participant.role,
+        pfp_label=participant.pfp_label,
+        pfp_tint=participant.pfp_tint,
+        is_self=participant.is_self,
+        created_at=_iso(participant.created_at),
+        updated_at=_iso(participant.updated_at),
+    )
+
+
+def _message_payload(message: MessageRecord) -> MessageResponse:
+    return MessageResponse(
+        id=message.id,
+        conversation_id=message.conversation_id,
+        sender_id=message.sender_id,
+        position=message.position,
+        message_type=message.message_type,
+        transport=message.transport,
+        audio_path=message.audio_path,
+        audio_url=_media_url(message.audio_path),
+        transcript=message.transcript,
+        delivery_state=message.delivery_state,
+        created_at=_iso(message.created_at),
+        updated_at=_iso(message.updated_at),
+    )
+
+
+def _conversation_payload(session, conversation: ConversationRecord) -> ConversationSummaryResponse:
+    messages = _list_messages(session, conversation.id)
+    latest_text = messages[-1].transcript if messages else ""
+    return ConversationSummaryResponse(
+        id=conversation.id,
+        title=conversation.title,
+        transport=conversation.transport,
+        is_active=conversation.is_active,
+        message_count=len(messages),
+        latest_message_preview=_preview(latest_text),
+        created_at=_iso(conversation.created_at),
+        updated_at=_iso(conversation.updated_at),
+    )
+
+
+def _conversation_detail_payload(session, conversation: ConversationRecord) -> ConversationDetailResponse:
+    participants = _list_conversation_participants(session, conversation.id)
+    messages = _list_messages(session, conversation.id)
+    return ConversationDetailResponse(
+        conversation=_conversation_payload(session, conversation),
+        participants=[_participant_payload(item) for item in participants],
+        messages=[_message_payload(item) for item in messages],
+    )
+
+
 def _combined_thread_text(session, thread_id: str) -> str:
     snippets = _list_thread_snippets(session, thread_id)
     return "\n\n".join(snippet.transcript.strip() for snippet in snippets if snippet.transcript.strip())
+
+
+def _combined_conversation_text(session, conversation_id: str) -> str:
+    messages = _list_messages(session, conversation_id)
+    participants = {item.id: item for item in _list_conversation_participants(session, conversation_id)}
+    lines = []
+    for message in messages:
+        speaker = participants.get(message.sender_id)
+        prefix = speaker.display_name if speaker else "Unknown"
+        body = message.transcript.strip()
+        if body:
+            lines.append(f"{prefix}: {body}")
+    return "\n".join(lines)
+
+
+def _maybe_append_transport_reply(session, conversation: ConversationRecord, sender: ParticipantRecord, text: str) -> MessageRecord | None:
+    if conversation.transport != "telegram_openclaw" or sender.role == "agent":
+        return None
+
+    agent = (
+        session.query(ParticipantRecord)
+        .filter(
+            ParticipantRecord.conversation_id == conversation.id,
+            ParticipantRecord.role == "agent",
+        )
+        .order_by(ParticipantRecord.created_at.asc())
+        .first()
+    )
+    if agent is None:
+        raise HTTPException(status_code=500, detail="OpenClaw participant missing")
+
+    dispatch = telegram_bridge.send_openclaw(text, conversation_title=conversation.title)
+    reply = MessageRecord(
+        conversation_id=conversation.id,
+        sender_id=agent.id,
+        position=_next_message_position(session, conversation.id),
+        message_type="agent",
+        transport=conversation.transport,
+        transcript=dispatch.output_text,
+        delivery_state=dispatch.transport_state,
+    )
+    session.add(reply)
+    _touch_conversation(conversation)
+    session.add(conversation)
+    session.flush()
+    return reply
 
 
 def _normalize_input_text(text: str) -> str:
@@ -595,6 +920,158 @@ async def api_update_snippet(snippet_id: str, payload: UpdateSnippetRequest) -> 
         return _snippet_payload(snippet)
 
 
+@app.get("/api/conversations", response_model=List[ConversationSummaryResponse])
+async def api_list_conversations() -> List[ConversationSummaryResponse]:
+    with db_session() as session:
+        conversations = (
+            session.query(ConversationRecord)
+            .order_by(
+                ConversationRecord.is_active.desc(),
+                ConversationRecord.updated_at.desc(),
+                ConversationRecord.created_at.desc(),
+            )
+            .all()
+        )
+        return [_conversation_payload(session, item) for item in conversations]
+
+
+@app.get("/api/conversations/active", response_model=ConversationDetailResponse)
+async def api_active_conversation() -> ConversationDetailResponse:
+    with db_session() as session:
+        conversation = _get_active_conversation(session, create_if_missing=True)
+        return _conversation_detail_payload(session, conversation)
+
+
+@app.get("/api/conversations/{conversation_id}", response_model=ConversationDetailResponse)
+async def api_conversation_detail(conversation_id: str) -> ConversationDetailResponse:
+    with db_session() as session:
+        conversation = _get_conversation(session, conversation_id)
+        return _conversation_detail_payload(session, conversation)
+
+
+@app.post("/api/conversations", response_model=ConversationDetailResponse)
+async def api_create_conversation(payload: CreateConversationRequest) -> ConversationDetailResponse:
+    transport = (payload.transport or "local").strip() or "local"
+    if transport not in {"local", "telegram_openclaw"}:
+        raise HTTPException(status_code=400, detail="Unsupported conversation transport")
+    title = (payload.title or "").strip() or _default_conversation_title(transport)
+    with db_session() as session:
+        conversation = ConversationRecord(title=title, transport=transport, is_active=True)
+        session.add(conversation)
+        session.flush()
+        _activate_conversation(session, conversation)
+        _seed_conversation_participants(session, conversation, payload.friend_name)
+        return _conversation_detail_payload(session, conversation)
+
+
+@app.patch("/api/conversations/{conversation_id}", response_model=ConversationSummaryResponse)
+async def api_update_conversation(conversation_id: str, payload: UpdateConversationRequest) -> ConversationSummaryResponse:
+    title = (payload.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Conversation title cannot be empty")
+    with db_session() as session:
+        conversation = _get_conversation(session, conversation_id)
+        conversation.title = title
+        _touch_conversation(conversation)
+        session.add(conversation)
+        session.flush()
+        return _conversation_payload(session, conversation)
+
+
+@app.post("/api/conversations/{conversation_id}/activate", response_model=ConversationDetailResponse)
+async def api_activate_conversation(conversation_id: str) -> ConversationDetailResponse:
+    with db_session() as session:
+        conversation = _get_conversation(session, conversation_id)
+        _activate_conversation(session, conversation)
+        return _conversation_detail_payload(session, conversation)
+
+
+@app.post("/api/conversations/{conversation_id}/messages", response_model=ConversationDetailResponse)
+async def api_create_message(conversation_id: str, payload: CreateMessageRequest) -> ConversationDetailResponse:
+    transcript = _normalize_input_text(payload.transcript)
+    if not transcript:
+        raise HTTPException(status_code=400, detail="Message transcript cannot be empty")
+
+    with db_session() as session:
+        conversation = _get_conversation(session, conversation_id)
+        sender = _get_participant(session, payload.sender_id)
+        if sender.conversation_id != conversation.id:
+            raise HTTPException(status_code=400, detail="Sender does not belong to conversation")
+
+        message = MessageRecord(
+            conversation_id=conversation.id,
+            sender_id=sender.id,
+            position=_next_message_position(session, conversation.id),
+            message_type=(payload.message_type or "text").strip() or "text",
+            transport=conversation.transport,
+            transcript=transcript,
+        )
+        session.add(message)
+        _touch_conversation(conversation)
+        session.add(conversation)
+        session.flush()
+
+        _maybe_append_transport_reply(session, conversation, sender, transcript)
+        return _conversation_detail_payload(session, conversation)
+
+
+@app.post("/api/conversations/{conversation_id}/record/start", response_model=StatusResponse)
+async def api_conversation_record_start(conversation_id: str, sender_id: str) -> StatusResponse:
+    with db_session() as session:
+        conversation = _get_conversation(session, conversation_id)
+        sender = _get_participant(session, sender_id)
+        if sender.conversation_id != conversation.id:
+            raise HTTPException(status_code=400, detail="Sender does not belong to conversation")
+    return await api_record_start()
+
+
+@app.post("/api/conversations/{conversation_id}/record/stop", response_model=ConversationDetailResponse)
+async def api_conversation_record_stop(conversation_id: str, sender_id: str) -> ConversationDetailResponse:
+    try:
+        result = recorder_service.stop()
+    except RecorderIdleError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Failed to stop conversation recording")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    audio_path = result.get("audio_path")
+    if not audio_path:
+        raise HTTPException(status_code=500, detail="Recorder did not provide audio path")
+    transcript_text, _mocked = transcribe(audio_path)
+
+    with db_session() as session:
+        conversation = _get_conversation(session, conversation_id)
+        sender = _get_participant(session, sender_id)
+        if sender.conversation_id != conversation.id:
+            raise HTTPException(status_code=400, detail="Sender does not belong to conversation")
+        _activate_conversation(session, conversation)
+
+        message = MessageRecord(
+            conversation_id=conversation.id,
+            sender_id=sender.id,
+            position=_next_message_position(session, conversation.id),
+            message_type="voice",
+            transport=conversation.transport,
+            audio_path=audio_path,
+            transcript=transcript_text,
+        )
+        session.add(message)
+        _touch_conversation(conversation)
+        session.add(conversation)
+        session.flush()
+
+        _maybe_append_transport_reply(session, conversation, sender, transcript_text)
+        return _conversation_detail_payload(session, conversation)
+
+
+@app.get("/api/conversations/{conversation_id}/playback", response_model=ConversationDetailResponse)
+async def api_conversation_playback(conversation_id: str) -> ConversationDetailResponse:
+    with db_session() as session:
+        conversation = _get_conversation(session, conversation_id)
+        return _conversation_detail_payload(session, conversation)
+
+
 @app.get("/api/live", response_model=LiveStatusResponse)
 async def api_live() -> LiveStatusResponse:
     recording_id = recorder_service.current_recording_id()
@@ -689,6 +1166,12 @@ async def api_clear_transcripts(thread_id: str | None = None) -> StatusResponse:
 async def api_agent_options() -> List[AgentOptionResponse]:
     return [
         AgentOptionResponse(
+            id="gemini_flash",
+            name="Gemini Flash",
+            description="Default answering model for snippet and thread dispatch.",
+            featured=True,
+        ),
+        AgentOptionResponse(
             id="vanilla",
             name="Vanilla",
             description="Local dummy agent for testing transcript and thread submission.",
@@ -696,15 +1179,9 @@ async def api_agent_options() -> List[AgentOptionResponse]:
         ),
         AgentOptionResponse(
             id="openclaw",
-            name="OpenClaw",
-            description="Featured robot factory preset with a more assertive briefing voice.",
+            name="OpenClaw // Telegram",
+            description="Routes into the Telegram/OpenClaw channel stub now, real bot route when configured.",
             featured=True,
-        ),
-        AgentOptionResponse(
-            id="gemini_flash",
-            name="Gemini Flash",
-            description="Uses Gemini Flash to answer snippet/thread content.",
-            featured=False,
         ),
     ]
 
@@ -723,7 +1200,11 @@ async def api_agent_run(request: AgentRequest) -> AgentResponse:
         except Exception as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         mocked = False
-    elif request.agent_id in {"vanilla", "openclaw"}:
+    elif request.agent_id == "openclaw":
+        dispatch = telegram_bridge.send_openclaw(input_text, conversation_title="Snippet dispatch")
+        output_text = dispatch.output_text
+        mocked = dispatch.mocked
+    elif request.agent_id == "vanilla":
         output_text = _dummy_agent_output(request.agent_id, input_mode, input_text)
         mocked = True
     else:
@@ -740,6 +1221,12 @@ async def api_agent_run(request: AgentRequest) -> AgentResponse:
         mocked=mocked,
         session_id=request.session_id,
     )
+
+
+@app.get("/api/integrations/telegram/status", response_model=TelegramStatusResponse)
+async def api_telegram_status() -> TelegramStatusResponse:
+    status = telegram_bridge.status()
+    return TelegramStatusResponse(**status)
 
 
 @app.post("/api/agent/moneypenny", response_model=AgentResponse)

@@ -37,6 +37,9 @@ class DeviceServerThreadWorkflowTest(unittest.TestCase):
         self.addCleanup(self.db.engine.dispose)
 
         with self.db.db_session() as session:
+            session.query(self.db.MessageRecord).delete()
+            session.query(self.db.ParticipantRecord).delete()
+            session.query(self.db.ConversationRecord).delete()
             session.query(self.db.SnippetRecord).delete()
             session.query(self.db.ThreadRecord).delete()
             session.query(self.db.ChitRecord).delete()
@@ -49,12 +52,15 @@ class DeviceServerThreadWorkflowTest(unittest.TestCase):
             return_value={"audio_path": "sessions/fake.wav", "recording_id": "rec-001"},
         )
         self.transcribe_patch = mock.patch.object(self.server, "transcribe", return_value=("voice snippet", True))
+        self.gemini_patch = mock.patch.object(self.server, "_run_gemini_flash", return_value="gemini answer")
         self.start_patch.start()
         self.stop_patch.start()
         self.transcribe_patch.start()
+        self.gemini_patch.start()
         self.addCleanup(self.start_patch.stop)
         self.addCleanup(self.stop_patch.stop)
         self.addCleanup(self.transcribe_patch.stop)
+        self.addCleanup(self.gemini_patch.stop)
 
         self.client = TestClient(self.server.app)
         self.client.__enter__()
@@ -111,6 +117,18 @@ class DeviceServerThreadWorkflowTest(unittest.TestCase):
         self.assertEqual(agent_response.status_code, 200)
         self.assertIn("VANILLA AGENT", agent_response.json()["output_text"])
 
+        gemini_response = self.client.post(
+            "/api/agent/run",
+            json={
+                "agent_id": "gemini_flash",
+                "input_mode": "snippet",
+                "snippet_id": snippet_id,
+                "response_mode": "text_only",
+            },
+        )
+        self.assertEqual(gemini_response.status_code, 200)
+        self.assertEqual(gemini_response.json()["output_text"], "gemini answer")
+
         second_thread = self.client.post("/api/threads", json={"title": "SECOND STACK"})
         self.assertEqual(second_thread.status_code, 200)
         second_payload = second_thread.json()
@@ -122,6 +140,58 @@ class DeviceServerThreadWorkflowTest(unittest.TestCase):
         threads_payload = threads_response.json()
         self.assertEqual(len(threads_payload), 2)
         self.assertEqual(threads_payload[0]["title"], "SECOND STACK")
+
+    def test_conversation_and_openclaw_stub_workflow(self) -> None:
+        active = self.client.get("/api/conversations/active")
+        self.assertEqual(active.status_code, 200)
+        active_payload = active.json()
+        self.assertEqual(active_payload["messages"], [])
+        self.assertEqual(len(active_payload["participants"]), 2)
+        conversation_id = active_payload["conversation"]["id"]
+        you_id = active_payload["participants"][0]["id"]
+        friend_id = active_payload["participants"][1]["id"]
+
+        message_response = self.client.post(
+            f"/api/conversations/{conversation_id}/messages",
+            json={"sender_id": you_id, "transcript": "first text ping", "message_type": "text"},
+        )
+        self.assertEqual(message_response.status_code, 200)
+        message_payload = message_response.json()
+        self.assertEqual(len(message_payload["messages"]), 1)
+        self.assertEqual(message_payload["messages"][0]["transcript"], "first text ping")
+
+        start_response = self.client.post(f"/api/conversations/{conversation_id}/record/start?sender_id={friend_id}")
+        self.assertEqual(start_response.status_code, 200)
+        stop_response = self.client.post(f"/api/conversations/{conversation_id}/record/stop?sender_id={friend_id}")
+        self.assertEqual(stop_response.status_code, 200)
+        stop_payload = stop_response.json()
+        self.assertEqual(len(stop_payload["messages"]), 2)
+        self.assertEqual(stop_payload["messages"][1]["message_type"], "voice")
+        self.assertEqual(stop_payload["messages"][1]["transcript"], "voice snippet")
+
+        telegram_response = self.client.post(
+            "/api/conversations",
+            json={"title": "Telegram OpenClaw", "transport": "telegram_openclaw"},
+        )
+        self.assertEqual(telegram_response.status_code, 200)
+        telegram_payload = telegram_response.json()
+        self.assertEqual(telegram_payload["conversation"]["transport"], "telegram_openclaw")
+        self.assertEqual(len(telegram_payload["participants"]), 2)
+        sender_id = next(item["id"] for item in telegram_payload["participants"] if item["is_self"])
+
+        stub_reply = self.client.post(
+            f"/api/conversations/{telegram_payload['conversation']['id']}/messages",
+            json={"sender_id": sender_id, "transcript": "Send this to OpenClaw", "message_type": "text"},
+        )
+        self.assertEqual(stub_reply.status_code, 200)
+        stub_payload = stub_reply.json()
+        self.assertEqual(len(stub_payload["messages"]), 2)
+        self.assertEqual(stub_payload["messages"][1]["message_type"], "agent")
+        self.assertIn("OPENCLAW // TELEGRAM", stub_payload["messages"][1]["transcript"])
+
+        telegram_status = self.client.get("/api/integrations/telegram/status")
+        self.assertEqual(telegram_status.status_code, 200)
+        self.assertIn("configured", telegram_status.json())
 
 
 if __name__ == "__main__":

@@ -1,545 +1,477 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WhisPTT Terminal Mockup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhisPTT Relay</title>
   <link rel="stylesheet" href="assets/css/theme.css">
+  <style>
+    .relay-shell {
+      width: min(98vw, 1760px);
+      min-height: min(94vh, 980px);
+      border-radius: 24px;
+      border: 1px solid rgba(99, 255, 131, 0.24);
+      background:
+        radial-gradient(circle at top left, rgba(122, 255, 244, 0.09), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(99, 255, 131, 0.08), transparent 28%),
+        linear-gradient(180deg, rgba(7, 12, 7, 0.98), rgba(2, 4, 2, 0.98));
+      box-shadow: var(--shadow-outer);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .relay-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid rgba(99, 255, 131, 0.14);
+      background: linear-gradient(180deg, rgba(122, 255, 244, 0.08), rgba(99, 255, 131, 0.03));
+    }
+
+    .relay-title-block h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 1.08rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .relay-title-block p {
+      margin: 4px 0 0;
+      color: var(--text-soft);
+      font-size: 0.76rem;
+      letter-spacing: 0.06em;
+    }
+
+    .relay-grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1.25fr) minmax(360px, 0.95fr);
+      gap: 12px;
+      padding: 14px;
+      overflow-x: auto;
+    }
+
+    .pane {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--panel-edge);
+      border-radius: 20px;
+      background: var(--panel-bg);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .pane h2 {
+      margin: 0;
+      font-size: 0.84rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--matrix-cyan);
+    }
+
+    .conversation-list,
+    .relay-feed {
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .conversation-card,
+    .message-card {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(99, 255, 131, 0.14);
+      border-radius: 16px;
+      background: rgba(10, 14, 10, 0.9);
+      color: inherit;
+      padding: 12px 14px;
+      transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-mid);
+    }
+
+    .conversation-card {
+      cursor: pointer;
+    }
+
+    .conversation-card:hover,
+    .conversation-card:focus-visible,
+    .conversation-card--active,
+    .message-card--active {
+      outline: none;
+      transform: translateY(-1px);
+      border-color: rgba(122, 255, 244, 0.44);
+      box-shadow: 0 0 18px rgba(99, 255, 131, 0.1);
+    }
+
+    .conversation-card__title,
+    .message-card__body {
+      margin: 0;
+      line-height: 1.58;
+      white-space: pre-wrap;
+    }
+
+    .conversation-card__meta,
+    .message-card__meta {
+      margin: 0 0 6px;
+      color: var(--text-soft);
+      font-size: 0.66rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .relay-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .relay-mode-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .relay-stage {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .participant-rig {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .participant-card {
+      position: relative;
+      min-height: 188px;
+      overflow: hidden;
+      border-radius: 18px;
+      border: 1px solid rgba(99, 255, 131, 0.16);
+      background:
+        radial-gradient(circle at top, rgba(122, 255, 244, 0.1), transparent 36%),
+        linear-gradient(180deg, rgba(14, 18, 14, 0.96), rgba(5, 8, 5, 0.95));
+      padding: 16px;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
+
+    .participant-card__avatar {
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      color: var(--text-main);
+      border: 1px solid rgba(122, 255, 244, 0.36);
+      background: rgba(5, 8, 5, 0.84);
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.32);
+    }
+
+    .participant-card__name {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: var(--font-display);
+    }
+
+    .participant-card__handle {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .participant-card__overlay {
+      position: absolute;
+      inset: 20px 16px 20px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 14px;
+      border-radius: 18px;
+      color: var(--matrix-cyan);
+      background: linear-gradient(180deg, rgba(3, 6, 3, 0.24), rgba(3, 6, 3, 0.82));
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      text-shadow: 0 0 18px rgba(122, 255, 244, 0.32);
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .participant-card--playing {
+      border-color: rgba(122, 255, 244, 0.52);
+      box-shadow: 0 0 26px rgba(122, 255, 244, 0.12);
+    }
+
+    .participant-card--playing .participant-card__overlay {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .participant-card--playing .participant-card__avatar {
+      box-shadow:
+        0 0 0 1px rgba(122, 255, 244, 0.18),
+        0 0 28px rgba(122, 255, 244, 0.18),
+        inset 0 0 18px rgba(0, 0, 0, 0.36);
+    }
+
+    .relay-feed--thread .message-card {
+      max-width: 78%;
+    }
+
+    .relay-feed--thread .message-card--self {
+      align-self: flex-end;
+      background: linear-gradient(180deg, rgba(17, 30, 17, 0.95), rgba(6, 10, 6, 0.95));
+      border-color: rgba(99, 255, 131, 0.28);
+    }
+
+    .relay-feed--thread .message-card--other {
+      align-self: flex-start;
+    }
+
+    .relay-feed--timeline .message-card {
+      border-left: 3px solid rgba(122, 255, 244, 0.34);
+    }
+
+    .message-card__actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .message-card__play {
+      min-height: 30px;
+      padding: 0 10px;
+      font-size: 0.62rem;
+    }
+
+    .relay-compose-stack {
+      display: grid;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .relay-textarea {
+      min-height: 280px;
+      resize: none;
+      line-height: 1.62;
+      font-size: 0.92rem;
+    }
+
+    .compose-row,
+    .pane-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .compose-row {
+      align-items: center;
+    }
+
+    .relay-mic {
+      width: 76px;
+      height: 76px;
+      border: 1px solid rgba(122, 255, 244, 0.44);
+      background: linear-gradient(180deg, rgba(20, 32, 20, 0.95), rgba(7, 12, 7, 0.96));
+    }
+
+    .relay-mic .control-button__icon {
+      width: 40px;
+      height: 40px;
+    }
+
+    .composer-note,
+    .relay-status-line {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 0.72rem;
+      line-height: 1.6;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      min-height: 1.2rem;
+    }
+
+    .transport-card {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(99, 255, 131, 0.16);
+      background: rgba(6, 10, 6, 0.88);
+      display: grid;
+      gap: 8px;
+    }
+
+    .transport-card__heading {
+      margin: 0;
+      color: var(--matrix-cyan);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+    }
+
+    .desktop-bottom-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px 14px;
+      border-top: 1px solid rgba(99, 255, 131, 0.12);
+      background: linear-gradient(180deg, rgba(8, 12, 8, 0.82), rgba(5, 8, 5, 0.94));
+    }
+
+    .desktop-bottom-nav .bottom-nav__item {
+      width: 46px;
+      height: 46px;
+    }
+
+    @media (max-width: 1380px) {
+      .relay-grid {
+        grid-template-columns: 270px minmax(720px, 1fr) minmax(340px, 0.95fr);
+      }
+    }
+
+    @media (max-width: 1120px) {
+      .relay-grid {
+        grid-template-columns: 270px minmax(640px, 1fr) minmax(360px, 0.95fr);
+      }
+      .participant-rig {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div class="app-shell app-shell--recorder">
-    <header class="top-banner"><img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT logo" class="top-banner__logo"></header>
+  <div class="relay-shell">
+    <header class="relay-header">
+      <div class="relay-title-block">
+        <h1>WhisPTT Relay</h1>
+        <p>Async voice DM, chronological playback, and the OpenClaw Telegram lane.</p>
+      </div>
+      <div class="chip-row">
+        <span class="chip chip--accent" id="conversation-count-chip">0 conversations</span>
+        <span class="chip" id="active-transport-chip">local relay</span>
+        <span class="chip" id="telegram-status-chip">telegram stub</span>
+      </div>
+    </header>
 
-    <main class="screen">
-      <section class="transcription-panel" aria-label="Transcript window">
-        <div class="status-bar">
-          <span class="timer status-bar__timer" id="snippet-timer">TRANSCRIPT EDITOR</span>
+    <main class="relay-grid">
+      <section class="pane">
+        <h2>Conversations</h2>
+        <div class="chip-row">
+          <span class="chip chip--accent" id="active-conversation-chip">No active chat</span>
+          <span class="chip" id="message-count-chip">0 messages</span>
         </div>
-        <p class="transcription-placeholder" id="transcription-placeholder">Transcription appears here</p>
-        <div class="transcription-log" id="transcription-log" aria-live="polite"
-            style="overflow-y:auto; flex:1; min-height:0;"></div>
+        <div class="conversation-list" id="conversation-list"></div>
+        <div class="pane-actions">
+          <button class="action-button" type="button" id="new-local-conversation">New Local Relay</button>
+          <button class="action-button" type="button" id="new-openclaw-conversation">OpenClaw Channel</button>
+          <button class="action-button" type="button" id="switch-conversation">Switch</button>
+        </div>
       </section>
 
-        <!-- recording-controls -->
-        <div class="recording-controls" aria-label="Recording controls">
-          <!-- LEFT ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Clear -->
-          <button class="control-button" id="action-left" aria-label="Clear transcript">
-            <svg class="control-button__icon" viewBox="0 0 32 32" aria-hidden="true">
-              <path d="M9 11a8.5 8.5 0 0112.6-3.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <polyline points="18 7 24 7 24 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M23 21a8.5 8.5 0 01-12.6 3.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <polyline points="14 25 8 25 8 19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
+      <section class="pane relay-stage">
+        <h2>Playback Stage</h2>
+        <div class="relay-toolbar">
+          <label>
+            <span class="panel-kicker">Conversation Title</span>
+            <input id="conversation-title-input" type="text" placeholder="Conversation title">
+          </label>
+          <button class="action-button" type="button" id="save-conversation-title">Save Title</button>
+          <div class="relay-mode-buttons">
+            <button class="pill-button pill-button--active" type="button" id="mode-timeline">Timeline</button>
+            <button class="pill-button" type="button" id="mode-thread">DM Thread</button>
+          </div>
+        </div>
+        <div class="participant-rig" id="participant-rig"></div>
+        <div class="relay-feed relay-feed--timeline" id="relay-feed"></div>
+        <div class="pane-actions">
+          <button class="action-button" type="button" id="play-conversation">Play Chronologically</button>
+          <button class="action-button" type="button" id="stop-playback">Stop Playback</button>
+          <button class="action-button" type="button" id="clear-conversation-output">Clear Composer</button>
+        </div>
+        <p class="relay-status-line" id="playback-status">Select a message or play the entire conversation.</p>
+      </section>
 
-          <!-- CENTRE ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Mic -->
-          <button class="mic-button" id="mic-button" aria-label="Tap to record">
-            <img src="assets/svg-assets/action-menu-svg-icons/mic-simple.svg"
-                class="control-button__icon control-button__icon--mic" alt="">
-          </button>
+      <section class="pane">
+        <h2>Compose</h2>
+        <div class="relay-compose-stack">
+          <div class="transport-card">
+            <p class="transport-card__heading">Transport</p>
+            <div class="chip-row">
+              <span class="chip chip--accent" id="conversation-mode-chip">Local friend relay</span>
+              <span class="chip" id="sender-role-chip">You</span>
+            </div>
+            <p class="composer-note" id="transport-note">Record or type as either participant. OpenClaw conversations auto-route into the Telegram stub.</p>
+          </div>
 
-          <!-- RIGHT ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Copy to clipboard -->
-          <button class="control-button" id="action-right" aria-label="Copy transcript to clipboard">
-            <svg class="control-button__icon" viewBox="0 0 32 32" aria-hidden="true">
-              <rect x="12" y="9" width="12" height="16" rx="2.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M10 21H8a2 2 0 01-2-2V8a3 3 0 013-3h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-                </div>
+          <label>
+            <span class="panel-kicker">Sender</span>
+            <select id="sender-select"></select>
+          </label>
 
-        <p id="status-text" class="status-text"></p>        
+          <label>
+            <span class="panel-kicker">Message</span>
+            <textarea id="message-editor" class="relay-textarea" placeholder="Type a message, or use the mic to record a voice note into the active conversation."></textarea>
+          </label>
+
+          <div class="compose-row">
+            <button class="action-button" type="button" id="send-text-message">Send Text</button>
+            <button class="action-button" type="button" id="send-thread-to-openclaw">Send Transcript To OpenClaw</button>
+            <button class="mic-button relay-mic" type="button" id="conversation-mic-button" aria-label="Record conversation message">
+              <img src="assets/svg-assets/action-menu-svg-icons/mic-simple.svg" class="control-button__icon control-button__icon--mic" alt="">
+            </button>
+          </div>
+
+          <div class="pane-actions">
+            <button class="action-button" type="button" id="open-redline">Open Snippet Studio</button>
+            <button class="action-button" type="button" id="open-factory">Factory</button>
+          </div>
+        </div>
+        <p class="relay-status-line" id="composer-status">Ready.</p>
+      </section>
     </main>
 
-    <nav class="bottom-nav" aria-label="Primary navigation">
-      <button class="bottom-nav__item" type="button" aria-label="Agents" id="nav-chat">
-        <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="Agents" class="bottom-nav__icon">
+    <div class="desktop-bottom-nav" aria-label="Primary navigation">
+      <button class="bottom-nav__item bottom-nav__item--active" type="button" aria-label="Relay" id="nav-chat">
+        <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="Relay" class="bottom-nav__icon">
       </button>
       <button class="bottom-nav__item" type="button" aria-label="Profile" id="nav-profile">
         <img src="assets/svg-assets/lower-menu-svg-icons/L1-profile-page-menu.svg" alt="Profile" class="bottom-nav__icon">
       </button>
-      <button class="bottom-nav__item bottom-nav__item--active" type="button" aria-label="Recorder" id="nav-recorder">
+      <button class="bottom-nav__item" type="button" aria-label="Recorder" id="nav-recorder">
         <img src="assets/svg-assets/lower-menu-svg-icons/C-mic-center-menu.svg" alt="Recorder" class="bottom-nav__icon">
       </button>
-      <button class="bottom-nav__item" type="button" aria-label="Edit Transcript" id="nav-editor">
-        <img src="assets/svg-assets/lower-menu-svg-icons/R1-edit-transcript-menu.svg" alt="Edit Transcript" class="bottom-nav__icon">
+      <button class="bottom-nav__item" type="button" aria-label="Factory" id="nav-editor">
+        <img src="assets/svg-assets/lower-menu-svg-icons/R1-edit-transcript-menu.svg" alt="Factory" class="bottom-nav__icon">
       </button>
       <button class="bottom-nav__item" type="button" aria-label="Android" id="nav-android">
         <img src="assets/svg-assets/lower-menu-svg-icons/R2-android-menu.svg" alt="Android" class="bottom-nav__icon">
       </button>
-    </nav>
+    </div>
   </div>
 
-  <script>
-(function () {
-      /* <span style="color: red;">
-      const API_BASE = "http://127.0.0.1:7000";
-      </span> */
-      /* <span style="color: blue;">
-      CHANGED: Hardcoded localhost URL prevents deployment to other environments.
-      Now falls back to relative paths if window.location.origin matches, otherwise
-      uses configurable base. In production, this should read from env config.
-      </span> */
-      const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? "http://127.0.0.1:7000"
-        : (window.API_BASE_URL || "http://127.0.0.1:7000");
-
-      const micButton = document.getElementById("mic-button");
-      const bookmarkButton = document.getElementById("action-left");
-      const exportButton = document.getElementById("action-right");
-      const statusText = document.getElementById("status-text");
-      const log = document.getElementById("transcription-log");
-      const placeholder = document.getElementById("transcription-placeholder");
-      const snippetTimerEl = document.getElementById("snippet-timer");
-      const navRecorderButton = document.getElementById("nav-recorder");
-      const navEditorButton = document.getElementById("nav-editor");
-      const navChatButton = document.getElementById("nav-chat");
-      const navProfileButton = document.getElementById("nav-profile");
-      const navAndroidButton = document.getElementById("nav-android");
-      const EDITOR_PREFILL_KEY = "whisptt.editorPrefill";
-
-      let isRecording = false;
-      let stopInFlight = false;
-      let exportInFlight = false;
-      let snippetTimerId = null;
-      let snippetStartTime = null;
-
-      /* <span style="color: blue;">
-      ADDED: Configuration constants for timer precision and animation chunking
-      </span> */
-      const TIMER_UPDATE_INTERVAL_MS = 100;
-      const TYPEWRITER_TOTAL_CHUNKS = 120;  // Controls animation speed
-
-      function setStatus(message, tone) {
-        statusText.textContent = message;
-        statusText.classList.remove("success", "error");
-        if (tone) {
-          statusText.classList.add(tone);
-        }
-      }
-
-      function ensureHistoryVisible() {
-        if (!placeholder) {
-          return;
-        }
-        placeholder.style.display = log.childElementCount ? "none" : "block";
-      }
-
-      function startSnippetTimer() {
-        if (snippetTimerId) {
-          clearInterval(snippetTimerId);
-        }
-        snippetStartTime = Date.now();
-        snippetTimerEl.textContent = "00:00.0";
-        snippetTimerId = setInterval(() => {
-          const now = Date.now();
-          snippetTimerEl.textContent = formatTime(now - snippetStartTime);
-        /* <span style="color: red;">
-        }, 100);
-        </span> */
-        /* <span style="color: blue;">
-        CHANGED: Magic number replaced with named constant
-        </span> */
-        }, TIMER_UPDATE_INTERVAL_MS);
-      }
-
-      function stopSnippetTimer(keepDisplay = false) {
-        if (snippetTimerId) {
-          clearInterval(snippetTimerId);
-          snippetTimerId = null;
-        }
-        if (snippetStartTime) {
-          const duration = Date.now() - snippetStartTime;
-          snippetTimerEl.textContent = keepDisplay ? formatTime(duration) : "00:00.0";
-        }
-        snippetStartTime = null;
-      }
-
-      function resetSnippetTimer() {
-        stopSnippetTimer(false);
-        snippetTimerEl.textContent = "00:00.0";
-      }
-
-      function clearTranscriptionHistory() {
-        while (log.firstChild) {
-          log.removeChild(log.firstChild);
-        }
-        ensureHistoryVisible();
-      }
-
-
-function collectTranscriptForEditor() {
-        if (!log) {
-          return "";
-        }
-        const nodes = Array.from(log.querySelectorAll('.transcription-entry:not(.transcription-entry--live) p'));
-        const combined = nodes
-          .map((node) => node.textContent.trim())
-          .filter(Boolean)
-          .join("\n\n");
-        return combined;
-      }
-
-      async function exportSession() {
-        if (exportInFlight) {
-          return;
-        }
-        if (isRecording) {
-          setStatus("Stop recording before exporting", "error");
-          return;
-        }
-
-        exportInFlight = true;
-        exportButton.disabled = true;
-        try {
-          setStatus("Exporting session...");
-          const response = await fetch(`${API_BASE}/api/session/export`, { method: "POST" });
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || "Export failed");
-          }
-
-          clearTranscriptionHistory();
-          resetSnippetTimer();
-
-          let successMessage = data.export_path ? `Session saved to ${data.export_path}` : "Session log created";
-          const combined = data.combined_transcript || "";
-          if (combined && navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-              await navigator.clipboard.writeText(combined);
-              successMessage += " (copied to clipboard)";
-            } catch (clipboardError) {
-              console.warn('Clipboard write failed', clipboardError);
-            }
-          }
-
-          setStatus(successMessage, "success");
-        } catch (error) {
-          console.error(error);
-          setStatus(error.message || "Export failed", "error");
-        } finally {
-          exportInFlight = false;
-          exportButton.disabled = false;
-          ensureHistoryVisible();
-        }
-      }
-
-      function renderEntry(entry, options = {}) {
-        const { scroll = true, animate = true } = options;
-        const identifier = entry.id || entry.audio_path || entry.created_at || "";
-        const existingLast = log.lastElementChild;
-        if (identifier && existingLast) {
-          const existingId = existingLast.dataset.chitId || existingLast.dataset.audioPath || existingLast.dataset.timestamp || "";
-          if (existingId === identifier) {
-            ensureHistoryVisible();
-            return;
-          }
-        }
-
-        const article = document.createElement("article");
-        article.className = "transcription-entry transcription-entry--new";
-        if (entry.id) {
-          article.dataset.chitId = entry.id;
-        }
-        if (entry.audio_path) {
-          article.dataset.audioPath = entry.audio_path;
-        }
-        article.dataset.timestamp = entry.created_at || new Date().toISOString();
-
-        const text = document.createElement("p");
-        article.appendChild(text);
-
-        log.appendChild(article);
-        ensureHistoryVisible();
-
-        if (animate) {
-          typeOutText(text, entry.transcript || "");
-        } else {
-          text.textContent = entry.transcript || "";
-        }
-
-        if (scroll) {
-          log.scrollTop = log.scrollHeight;
-        }
-      }
-
-      function typeOutText(element, content) {
-        element.textContent = "";
-        if (!content) {
-          return;
-        }
-        const chars = Array.from(content);
-        let index = 0;
-        /* <span style="color: red;">
-        const chunk = Math.max(1, Math.floor(chars.length / 120));
-        </span> */
-        /* <span style="color: blue;">
-        CHANGED: Magic number 120 replaced with named constant. This controls how many
-        "chunks" the text is divided into for the typewriter animation. Higher = smoother
-        but more DOM updates; lower = chunkier but better performance for long transcripts.
-        </span> */
-        const chunk = Math.max(1, Math.floor(chars.length / TYPEWRITER_TOTAL_CHUNKS));
-
-        function step() {
-          const slice = chars.slice(index, index + chunk).join("");
-          element.textContent += slice;
-          index += chunk;
-          if (index < chars.length) {
-            requestAnimationFrame(step);
-          }
-        }
-
-        requestAnimationFrame(step);
-      }
-
-      function formatTime(ms) {
-        if (!Number.isFinite(ms) || ms < 0) {
-          ms = 0;
-        }
-        const minutes = Math.floor(ms / 60000);
-        const seconds = Math.floor((ms % 60000) / 1000);
-        const tenths = Math.floor((ms % 1000) / 100);
-        return `${minutes.toString().padStart(2, "0")}:${seconds
-          .toString()
-          .padStart(2, "0")}.${tenths}`;
-      }
-
-      function enterRecordingState() {
-        isRecording = true;
-        micButton.classList.add("mic-button--recording");
-        micButton.classList.add("mic-button--armed");
-        setStatus("Recording... tap to stop");
-        startSnippetTimer();
-      }
-
-      function exitRecordingState({ resetSnippet = false, statusTone = null, statusMessage = "Tap the button to start" } = {}) {
-        const wasRecording = isRecording;
-        isRecording = false;
-        micButton.classList.remove("mic-button--recording");
-        micButton.classList.remove("mic-button--armed");
-        if (resetSnippet) {
-          resetSnippetTimer();
-        } else if (wasRecording) {
-          stopSnippetTimer(true);
-        }
-        setStatus(statusMessage, statusTone);
-      }
-
-      async function startRecording() {
-        if (isRecording) {
-          return;
-        }
-
-        enterRecordingState();
-
-        try {
-          const response = await fetch(`${API_BASE}/api/record/start`, { method: "POST" });
-          if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error || "Failed to start recording");
-          }
-        } catch (error) {
-          console.error(error);
-          exitRecordingState({ resetSnippet: true, statusTone: "error", statusMessage: error.message || "Could not start recording" });
-          micButton.classList.remove("mic-button--armed");
-        }
-      }
-
-      async function stopRecording() {
-        if (!isRecording || stopInFlight) {
-          return;
-        }
-
-        stopInFlight = true;
-
-        micButton.classList.remove("mic-button--armed");
-        micButton.classList.remove("mic-button--recording");
-        setStatus("Processing transcript...");
-
-        try {
-          const response = await fetch(`${API_BASE}/api/record/stop`, { method: "POST" });
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || "Recording stop failed");
-          }
-          renderEntry(data);
-          exitRecordingState({ statusTone: "success", statusMessage: "Tap the button to start" });
-        } catch (error) {
-          console.error(error);
-          exitRecordingState({ resetSnippet: true, statusTone: "error", statusMessage: error.message || "Could not stop recording" });
-          stopInFlight = false;
-          return;
-        }
-
-        try {
-          const statusResponse = await fetch(`${API_BASE}/api/status`);
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            if (statusData.last_error) {
-              setStatus(statusData.last_error, "error");
-            }
-          }
-        } catch (statusError) {
-          console.warn("Status refresh failed", statusError);
-        } finally {
-          stopInFlight = false;
-        }
-      }
-
-      micButton.addEventListener("click", function (event) {
-        event.preventDefault();
-        if (stopInFlight) {
-          return;
-        }
-        if (isRecording) {
-          stopRecording();
-        } else {
-          micButton.classList.add("mic-button--armed");
-          startRecording();
-        }
-      });
-
-      bookmarkButton.addEventListener("click", async function (event) {
-        event.preventDefault();
-        if (isRecording) {
-          setStatus("Stop recording before clearing", "error");
-          return;
-        }
-        clearTranscriptionHistory();
-        resetSnippetTimer();
-        setStatus("Transcript cleared", "success");
-        try {
-          const response = await fetch(`${API_BASE}/api/transcript/clear`, { method: "POST" });
-          if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error || "Failed to clear transcript history");
-          }
-        } catch (error) {
-          console.warn("Transcript clear sync failed", error);
-          setStatus(error.message || "Could not sync clear action", "error");
-        }
-      });
-
-      exportButton.addEventListener("click", function (event) {
-        event.preventDefault();
-        exportSession();
-      });
-
-      if (navEditorButton) {
-        navEditorButton.dataset.editorNavWired = "true";
-        navEditorButton.addEventListener("click", () => {
-          const textForEditor = collectTranscriptForEditor();
-          try {
-            sessionStorage.setItem(EDITOR_PREFILL_KEY, JSON.stringify({ text: textForEditor, createdAt: new Date().toISOString() }));
-          } catch (storageError) {
-            console.warn("Failed to cache transcript for editor", storageError);
-          }
-          window.location.href = "html_editor.html";
-        });
-      }
-
-      if (navRecorderButton) {
-        navRecorderButton.addEventListener("click", () => {
-          window.location.href = "html_redline.html";
-        });
-      }
-
-      if (navChatButton) {
-        navChatButton.addEventListener("click", () => {
-          window.location.href = "html_chat.html";
-        });
-      }
-
-      if (navProfileButton) {
-        navProfileButton.addEventListener("click", () => {
-          window.location.href = "html_profile.html";
-        });
-      }
-
-      if (navAndroidButton) {
-        navAndroidButton.dataset.androidNavWired = "true";
-        navAndroidButton.addEventListener("click", () => {
-          window.location.href = "html_android.html";
-        });
-      }
-
-      async function hydrateHistory() {
-        try {
-          const response = await fetch(`${API_BASE}/api/chits`);
-          if (!response.ok) {
-            return;
-          }
-          const records = await response.json();
-          records.forEach((entry) => {
-            renderEntry(entry, { scroll: false, animate: false });
-          });
-          log.scrollTop = log.scrollHeight;
-          ensureHistoryVisible();
-        } catch (error) {
-          console.warn("History hydration failed", error);
-        }
-      }
-
-      hydrateHistory();
-      ensureHistoryVisible();
-    })();
-  </script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const navRecorderButton = document.getElementById('nav-recorder');
-      const navEditorButton = document.getElementById('nav-editor');
-      const navAndroidButton = document.getElementById('nav-android');
-      const navChatButton = document.getElementById('nav-chat');
-      const navProfileButton = document.getElementById('nav-profile');
-      if (navRecorderButton && !navRecorderButton.dataset.recorderNavWired) {
-        navRecorderButton.dataset.recorderNavWired = 'true';
-        navRecorderButton.addEventListener('click', function () {
-          window.location.href = 'html_redline.html';
-        });
-      }
-      if (navEditorButton && !navEditorButton.dataset.editorNavWired) {
-        navEditorButton.addEventListener('click', function () {
-          window.location.href = 'html_editor.html';
-        });
-      }
-      if (navAndroidButton && !navAndroidButton.dataset.androidNavWired) {
-        navAndroidButton.addEventListener('click', function () {
-          window.location.href = 'html_android.html';
-        });
-      }
-      if (navChatButton) {
-        navChatButton.addEventListener('click', function () {
-          window.location.href = 'html_factory.html';
-        });
-      }
-      if (navProfileButton) {
-        navProfileButton.addEventListener('click', function () {
-          window.location.href = 'html_profile.html';
-        });
-      }
-    });
-  </script>
+  <script src="assets/js/relay_chat.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

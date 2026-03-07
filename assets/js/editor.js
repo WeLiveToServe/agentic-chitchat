@@ -118,7 +118,7 @@
       window.location.href = "html_redline.html";
     });
     ui.navChat.addEventListener("click", () => {
-      window.location.href = "html_factory.html";
+      window.location.href = "html_chat.html";
     });
     ui.navProfile.addEventListener("click", () => {
       window.location.href = "html_profile.html";

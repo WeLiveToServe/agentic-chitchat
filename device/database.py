@@ -70,6 +70,48 @@ class SnippetRecord(Base):
     updated_at = Column(DateTime, default=utc_now, nullable=False)
 
 
+class ConversationRecord(Base):
+    __tablename__ = "conversations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String, nullable=False)
+    transport = Column(String, default="local", nullable=False)
+    is_active = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, nullable=False)
+
+
+class ParticipantRecord(Base):
+    __tablename__ = "participants"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String, nullable=False, index=True)
+    display_name = Column(String, nullable=False)
+    handle = Column(String, nullable=True)
+    role = Column(String, default="friend", nullable=False)
+    pfp_label = Column(String, nullable=False)
+    pfp_tint = Column(String, nullable=False)
+    is_self = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, nullable=False)
+
+
+class MessageRecord(Base):
+    __tablename__ = "messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String, nullable=False, index=True)
+    sender_id = Column(String, nullable=False, index=True)
+    position = Column(Integer, nullable=False)
+    message_type = Column(String, default="text", nullable=False)
+    transport = Column(String, default="local", nullable=False)
+    audio_path = Column(String, nullable=True)
+    transcript = Column(Text, nullable=False)
+    delivery_state = Column(String, default="delivered", nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, nullable=False)
+
+
 def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)

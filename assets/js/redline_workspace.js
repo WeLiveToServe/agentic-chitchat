@@ -6,7 +6,7 @@
 
   const PREFS_KEY = "whisptt.agentPrefs";
   const DEFAULT_PREFS = {
-    agentId: "vanilla",
+    agentId: "gemini_flash",
     inputMode: "snippet",
     responseMode: "text_only",
     autoSendVoice: false,
@@ -44,6 +44,7 @@
     autoSendToggle: document.getElementById("auto-send-toggle"),
     sendToAgent: document.getElementById("send-to-agent"),
     clearAgentOutput: document.getElementById("clear-agent-output"),
+    openRelay: document.getElementById("open-relay"),
     agentStatus: document.getElementById("agent-status"),
     agentOutput: document.getElementById("agent-output"),
     micButton: document.getElementById("mic-button"),
@@ -224,8 +225,15 @@
   }
 
   function renderAgentPrefs() {
+    if (state.agentOptions.length) {
+      const exists = state.agentOptions.some((option) => option.id === state.prefs.agentId);
+      if (!exists) {
+        const preferred = state.agentOptions.find((option) => option.id === "gemini_flash");
+        state.prefs.agentId = preferred ? preferred.id : state.agentOptions[0].id;
+      }
+    }
     const selectedOption = state.agentOptions.find((option) => option.id === state.prefs.agentId);
-    ui.agentPrefChip.textContent = selectedOption ? selectedOption.name : "Vanilla";
+    ui.agentPrefChip.textContent = selectedOption ? selectedOption.name : "Gemini Flash";
     ui.recordingModeChip.textContent = state.prefs.autoSendVoice ? "Push+Send voice" : "Voice capture";
     if (ui.responseModeChip) {
       ui.responseModeChip.textContent = state.prefs.responseMode === "voice_text" ? "Reply mode: voice + text" : "Reply mode: text only";
@@ -235,12 +243,6 @@
 
     ui.inputModeSelect.value = state.prefs.inputMode;
     ui.responseModeSelect.value = state.prefs.responseMode;
-    if (state.agentOptions.length) {
-      const exists = state.agentOptions.some((option) => option.id === state.prefs.agentId);
-      if (!exists) {
-        state.prefs.agentId = state.agentOptions[0].id;
-      }
-    }
     ui.agentSelect.value = state.prefs.agentId;
     savePrefs();
   }
@@ -525,6 +527,7 @@
     state.prefs.agentId = ui.agentSelect.value;
     state.prefs.inputMode = ui.inputModeSelect.value;
     state.prefs.responseMode = ui.responseModeSelect.value;
+    savePrefs();
     renderAgentPrefs();
     setAgentStatus(`Active model: ${ui.agentSelect.options[ui.agentSelect.selectedIndex].text}`, "agent-status-text--info");
   }
@@ -589,6 +592,12 @@
       setAgentStatus("Agent output cleared.");
     });
 
+    if (ui.openRelay) {
+      ui.openRelay.addEventListener("click", () => {
+        window.location.href = "html_chat.html";
+      });
+    }
+
     ui.agentSelect.addEventListener("change", applyControlPrefs);
     ui.inputModeSelect.addEventListener("change", applyControlPrefs);
     ui.responseModeSelect.addEventListener("change", applyControlPrefs);
@@ -606,7 +615,7 @@
     });
 
     ui.navChat.addEventListener("click", () => {
-      window.location.href = "html_factory.html";
+      window.location.href = "html_chat.html";
     });
     ui.navProfile.addEventListener("click", () => {
       window.location.href = "html_profile.html";
@@ -635,6 +644,10 @@
     await hydrateAgentOptions();
     await refreshWorkspace();
     renderAgentOutput("");
+    const selectedText = ui.agentSelect.options[ui.agentSelect.selectedIndex]
+      ? ui.agentSelect.options[ui.agentSelect.selectedIndex].text
+      : "Gemini Flash";
+    setAgentStatus(`Active model: ${selectedText}`, "agent-status-text--info");
     setStatus("Tap the mic to record into the active snippet stack.");
   }
 

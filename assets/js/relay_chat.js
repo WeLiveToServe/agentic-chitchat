@@ -35,16 +35,17 @@
     clearConversationOutput: document.getElementById("clear-conversation-output"),
     playbackStatus: document.getElementById("playback-status"),
     conversationModeChip: document.getElementById("conversation-mode-chip"),
+    composeTransportSelect: document.getElementById("compose-transport-select"),
     senderRoleChip: document.getElementById("sender-role-chip"),
     transportNote: document.getElementById("transport-note"),
     senderSelect: document.getElementById("sender-select"),
     messageEditor: document.getElementById("message-editor"),
     sendTextMessage: document.getElementById("send-text-message"),
-    sendThreadToOpenclaw: document.getElementById("send-thread-to-openclaw"),
-    conversationMicButton: document.getElementById("conversation-mic-button"),
+    sendVoiceChit: document.getElementById("send-voice-chit"),
     composerStatus: document.getElementById("composer-status"),
     newLocalConversation: document.getElementById("new-local-conversation"),
     newOpenclawConversation: document.getElementById("new-openclaw-conversation"),
+    newGeminiConversation: document.getElementById("new-gemini-conversation"),
     switchConversation: document.getElementById("switch-conversation"),
     openRedline: document.getElementById("open-redline"),
     openFactory: document.getElementById("open-factory"),
@@ -123,7 +124,12 @@
   }
 
   function selectableParticipants() {
-    return getParticipants().filter((participant) => participant.role !== "agent");
+    const participants = getParticipants();
+    const transport = state.activeConversation ? state.activeConversation.conversation.transport : "local";
+    if (transport === "local") {
+      return participants.filter((participant) => participant.role !== "agent");
+    }
+    return participants.filter((participant) => participant.is_self);
   }
 
   function combinedConversationText() {
@@ -179,16 +185,27 @@
   function renderSenderOptions() {
     const currentValue = ui.senderSelect.value;
     ui.senderSelect.innerHTML = "";
-    selectableParticipants().forEach((participant) => {
+    const candidates = selectableParticipants();
+    if (!candidates.length) {
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "No sender available";
+      empty.disabled = true;
+      empty.selected = true;
+      ui.senderSelect.appendChild(empty);
+      syncSenderChip();
+      return;
+    }
+    candidates.forEach((participant) => {
       const option = document.createElement("option");
       option.value = participant.id;
       option.textContent = participant.display_name;
       ui.senderSelect.appendChild(option);
     });
-    if (selectableParticipants().some((participant) => participant.id === currentValue)) {
+    if (candidates.some((participant) => participant.id === currentValue)) {
       ui.senderSelect.value = currentValue;
-    } else if (selectableParticipants().length) {
-      ui.senderSelect.value = selectableParticipants()[0].id;
+    } else if (candidates.length) {
+      ui.senderSelect.value = candidates[0].id;
     }
     syncSenderChip();
   }
@@ -200,9 +217,15 @@
     ui.messageCountChip.textContent = `${getMessages().length} messages`;
     ui.conversationTitleInput.value = conversation ? conversation.title : "";
     ui.activeTransportChip.textContent = conversation ? conversation.transport.replace(/_/g, " ") : "local relay";
+    if (ui.composeTransportSelect && conversation) {
+      ui.composeTransportSelect.value = conversation.transport;
+    }
     if (conversation && conversation.transport === "telegram_openclaw") {
       ui.conversationModeChip.textContent = "Telegram OpenClaw";
       ui.transportNote.textContent = "Messages from You route into OpenClaw. Replies return as a local Telegram stub until the bot token goes live.";
+    } else if (conversation && conversation.transport === "gemini_flash_channel") {
+      ui.conversationModeChip.textContent = "Gemini Flash Channel";
+      ui.transportNote.textContent = "Use this isolated channel for Gemini-only tests. Replies are generated here without touching OpenClaw Telegram context.";
     } else {
       ui.conversationModeChip.textContent = "Local friend relay";
       ui.transportNote.textContent = "Swap sender to simulate both sides. Voice notes persist and play back in order.";
@@ -296,7 +319,25 @@
     state.activeConversation = detail;
     await loadConversations();
     renderAll();
-    setComposerStatus(`New ${transport === "telegram_openclaw" ? "OpenClaw channel" : "local relay"} ready.`, "success");
+    const label = transport === "telegram_openclaw"
+      ? "OpenClaw channel"
+      : transport === "gemini_flash_channel"
+        ? "Gemini Flash channel"
+        : "local relay";
+    setComposerStatus(`New ${label} ready.`, "success");
+  }
+
+  async function ensureConversationForTransport(transport) {
+    if (state.activeConversation && state.activeConversation.conversation.transport === transport) {
+      return state.activeConversation;
+    }
+    const existing = state.conversations.find((conversation) => conversation.transport === transport);
+    if (existing) {
+      await activateConversation(existing.id);
+      return state.activeConversation;
+    }
+    await createConversation(transport);
+    return state.activeConversation;
   }
 
   async function saveConversationTitle() {
@@ -325,6 +366,8 @@
   }
 
   async function sendTextMessage() {
+    const selectedTransport = ui.composeTransportSelect ? ui.composeTransportSelect.value : "local";
+    await ensureConversationForTransport(selectedTransport);
     if (!state.activeConversation) {
       setComposerStatus("No active conversation.", "error");
       return;
@@ -346,27 +389,9 @@
     setComposerStatus("Message sent.", "success");
   }
 
-  async function sendTranscriptToOpenclaw() {
-    const text = combinedConversationText().trim();
-    if (!text) {
-      setComposerStatus("Conversation is empty.", "error");
-      return;
-    }
-    const response = await api("/api/agent/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        agent_id: "openclaw",
-        input_mode: "text",
-        text,
-        response_mode: "text_only",
-      }),
-    });
-    ui.messageEditor.value = response.output_text;
-    setComposerStatus("OpenClaw dispatch loaded into the composer for review.", "success");
-  }
-
   async function startRecording() {
+    const selectedTransport = ui.composeTransportSelect ? ui.composeTransportSelect.value : "local";
+    await ensureConversationForTransport(selectedTransport);
     if (!state.activeConversation || state.isRecording) {
       return;
     }
@@ -379,8 +404,11 @@
       method: "POST",
     });
     state.isRecording = true;
-    ui.conversationMicButton.classList.add("mic-button--armed", "mic-button--recording");
-    setComposerStatus("Recording voice note...", "success");
+    if (ui.sendVoiceChit) {
+      ui.sendVoiceChit.classList.add("pill-button--active");
+      ui.sendVoiceChit.textContent = "Stop Voice Chit";
+    }
+    setComposerStatus("Recording voice chit...", "success");
   }
 
   async function stopRecording() {
@@ -402,7 +430,10 @@
     } finally {
       state.stopInFlight = false;
       state.isRecording = false;
-      ui.conversationMicButton.classList.remove("mic-button--armed", "mic-button--recording");
+      if (ui.sendVoiceChit) {
+        ui.sendVoiceChit.classList.remove("pill-button--active");
+        ui.sendVoiceChit.textContent = "Send Voice Chit";
+      }
     }
   }
 
@@ -569,6 +600,11 @@
     ui.newOpenclawConversation.addEventListener("click", () => {
       createConversation("telegram_openclaw").catch((error) => setComposerStatus(error.message, "error"));
     });
+    if (ui.newGeminiConversation) {
+      ui.newGeminiConversation.addEventListener("click", () => {
+        createConversation("gemini_flash_channel").catch((error) => setComposerStatus(error.message, "error"));
+      });
+    }
     ui.switchConversation.addEventListener("click", () => {
       cycleConversation().catch((error) => setComposerStatus(error.message, "error"));
     });
@@ -586,19 +622,26 @@
       renderFeed();
     });
     ui.senderSelect.addEventListener("change", syncSenderChip);
+    if (ui.composeTransportSelect) {
+      ui.composeTransportSelect.addEventListener("change", () => {
+        const transport = ui.composeTransportSelect.value;
+        ensureConversationForTransport(transport)
+          .then(() => setComposerStatus(`Switched compose transport to ${transport.replace(/_/g, " ")}.`, "success"))
+          .catch((error) => setComposerStatus(error.message, "error"));
+      });
+    }
     ui.sendTextMessage.addEventListener("click", () => {
       sendTextMessage().catch((error) => setComposerStatus(error.message, "error"));
     });
-    ui.sendThreadToOpenclaw.addEventListener("click", () => {
-      sendTranscriptToOpenclaw().catch((error) => setComposerStatus(error.message, "error"));
-    });
-    ui.conversationMicButton.addEventListener("click", () => {
-      if (state.isRecording) {
-        stopRecording();
-      } else {
-        startRecording().catch((error) => setComposerStatus(error.message, "error"));
-      }
-    });
+    if (ui.sendVoiceChit) {
+      ui.sendVoiceChit.addEventListener("click", () => {
+        if (state.isRecording) {
+          stopRecording();
+        } else {
+          startRecording().catch((error) => setComposerStatus(error.message, "error"));
+        }
+      });
+    }
     ui.playConversation.addEventListener("click", () => {
       playConversation().catch((error) => setPlaybackStatus(error.message, "error"));
     });

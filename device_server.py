@@ -298,6 +298,8 @@ def _default_conversation_title(transport: str, now: datetime | None = None) -> 
     stamp = (now or datetime.now(timezone.utc)).strftime("%H%M")
     if transport == "telegram_openclaw":
         return f"OPENCLAW CHANNEL {stamp}"
+    if transport == "gemini_flash_channel":
+        return f"GEMINI FLASH CHANNEL {stamp}"
     return f"VOICE RELAY {stamp}"
 
 
@@ -371,6 +373,25 @@ def _conversation_participant_specs(transport: str, friend_name: str | None = No
                 "handle": "@openclaw",
                 "role": "agent",
                 "pfp_label": "OC",
+                "pfp_tint": "rgba(122, 255, 244, 0.22)",
+                "is_self": False,
+            },
+        ]
+    if transport == "gemini_flash_channel":
+        return [
+            {
+                "display_name": "You",
+                "handle": "@you",
+                "role": "self",
+                "pfp_label": "YOU",
+                "pfp_tint": "rgba(99, 255, 131, 0.22)",
+                "is_self": True,
+            },
+            {
+                "display_name": "Gemini Flash",
+                "handle": "@gemini_flash",
+                "role": "agent",
+                "pfp_label": "GF",
                 "pfp_tint": "rgba(122, 255, 244, 0.22)",
                 "is_self": False,
             },
@@ -605,7 +626,7 @@ def _combined_conversation_text(session, conversation_id: str) -> str:
 
 
 def _maybe_append_transport_reply(session, conversation: ConversationRecord, sender: ParticipantRecord, text: str) -> MessageRecord | None:
-    if conversation.transport != "telegram_openclaw" or sender.role == "agent":
+    if conversation.transport not in {"telegram_openclaw", "gemini_flash_channel"} or sender.role == "agent":
         return None
 
     agent = (
@@ -620,15 +641,25 @@ def _maybe_append_transport_reply(session, conversation: ConversationRecord, sen
     if agent is None:
         raise HTTPException(status_code=500, detail="OpenClaw participant missing")
 
-    dispatch = telegram_bridge.send_openclaw(text, conversation_title=conversation.title)
+    if conversation.transport == "telegram_openclaw":
+        dispatch = telegram_bridge.send_openclaw(text, conversation_title=conversation.title)
+        reply_text = dispatch.output_text
+        delivery_state = dispatch.transport_state
+    else:
+        try:
+            reply_text = _run_gemini_flash(text, "text")
+            delivery_state = "delivered"
+        except Exception as exc:
+            reply_text = f"GEMINI FLASH CHANNEL\n\nFallback reply: confirmed\n\n(reason: {exc})"
+            delivery_state = "fallback"
     reply = MessageRecord(
         conversation_id=conversation.id,
         sender_id=agent.id,
         position=_next_message_position(session, conversation.id),
         message_type="agent",
         transport=conversation.transport,
-        transcript=dispatch.output_text,
-        delivery_state=dispatch.transport_state,
+        transcript=reply_text,
+        delivery_state=delivery_state,
     )
     session.add(reply)
     _touch_conversation(conversation)
@@ -952,7 +983,7 @@ async def api_conversation_detail(conversation_id: str) -> ConversationDetailRes
 @app.post("/api/conversations", response_model=ConversationDetailResponse)
 async def api_create_conversation(payload: CreateConversationRequest) -> ConversationDetailResponse:
     transport = (payload.transport or "local").strip() or "local"
-    if transport not in {"local", "telegram_openclaw"}:
+    if transport not in {"local", "telegram_openclaw", "gemini_flash_channel"}:
         raise HTTPException(status_code=400, detail="Unsupported conversation transport")
     title = (payload.title or "").strip() or _default_conversation_title(transport)
     with db_session() as session:

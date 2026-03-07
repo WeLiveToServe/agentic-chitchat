@@ -77,6 +77,17 @@
       gap: 8px;
     }
 
+    .snippet-separator {
+      margin: 6px 0;
+      color: var(--matrix-cyan);
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(122, 255, 244, 0.3);
+      user-select: none;
+    }
+
     .thread-card,
     .snippet-card {
       width: 100%;
@@ -100,6 +111,36 @@
       transform: translateY(-1px);
       border-color: rgba(122, 255, 244, 0.44);
       box-shadow: 0 0 18px rgba(99, 255, 131, 0.1);
+    }
+
+    .snippet-card--new {
+      animation: snippet-pop 240ms ease-out;
+    }
+
+    .snippet-card--shifted {
+      animation: snippet-shift-down 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes snippet-pop {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes snippet-shift-down {
+      from {
+        transform: translateY(-26px);
+        opacity: 0.75;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
 
     .thread-card__title,
@@ -126,6 +167,33 @@
       display: grid;
       grid-template-rows: auto 1fr;
       gap: 10px;
+    }
+
+    .editor-caret-hint {
+      position: absolute;
+      left: 30px;
+      top: 78px;
+      color: var(--matrix-cyan);
+      font-size: 1rem;
+      line-height: 1;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 160ms ease;
+      animation: caret-blink 1s steps(1) infinite;
+      z-index: 6;
+    }
+
+    .editor-caret-hint--visible {
+      opacity: 0.92;
+    }
+
+    @keyframes caret-blink {
+      0%, 48% {
+        opacity: 1;
+      }
+      49%, 100% {
+        opacity: 0;
+      }
     }
 
     .snippet-title-input {
@@ -164,12 +232,26 @@
       gap: 8px;
     }
 
+    .snippet-pane-actions,
+    .agent-pane-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .snippet-pane-actions .action-button,
+    .agent-pane-actions .action-button {
+      width: 100%;
+    }
+
     .snippet-editor-quick-actions {
       position: absolute;
+      left: 16px;
       right: 16px;
       bottom: 16px;
       z-index: 7;
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       align-items: center;
       gap: 8px;
     }
@@ -180,11 +262,29 @@
       letter-spacing: 0.1em;
       padding: 0 10px;
       white-space: nowrap;
+      width: 100%;
+    }
+
+    .snippet-editor-mic {
+      grid-column: 3;
+      grid-row: 2;
+      justify-self: end;
     }
 
     .agent-controls {
       display: grid;
       gap: 10px;
+    }
+
+    .agent-input {
+      min-height: 168px;
+      resize: vertical;
+      border-radius: 14px;
+      border: 1px solid rgba(99, 255, 131, 0.18);
+      background: rgba(5, 8, 5, 0.86);
+      color: var(--text-main);
+      padding: 12px 14px;
+      line-height: 1.56;
     }
 
     .agent-output {
@@ -284,7 +384,10 @@
         <div class="snippet-editor-wrap">
           <input id="thread-title-input" class="snippet-title-input" type="text" placeholder="Thread title">
           <textarea id="snippet-editor" class="snippet-editor" placeholder="Select a snippet to edit, or type text and add a new snippet."></textarea>
+          <div id="editor-caret-hint" class="editor-caret-hint">|</div>
           <div class="snippet-editor-quick-actions">
+            <button class="action-button" type="button" id="new-snippet-inline">New Snippet</button>
+            <button class="action-button" type="button" id="start-new-thread-inline">Start New Thread</button>
             <button class="action-button" type="button" id="push-snippet-dispatch">Push Snippet To Dispatch</button>
             <button class="action-button" type="button" id="push-thread-dispatch">Push Thread To Dispatch</button>
             <button class="mic-button snippet-editor-mic" type="button" id="mic-button" aria-label="Record snippet">
@@ -294,7 +397,7 @@
         </div>
         <div class="snippet-list" id="snippet-list"></div>
         <p class="transcription-placeholder" id="snippet-placeholder">Record or add text to begin.</p>
-        <div class="pane-actions">
+        <div class="pane-actions snippet-pane-actions">
           <button class="action-button" type="button" id="save-snippet">Save Edit</button>
           <button class="action-button" type="button" id="add-text-snippet">Add New Snippet</button>
           <button class="action-button" type="button" id="save-thread-title">Save Title</button>
@@ -325,15 +428,21 @@
               <option value="voice_text">Voice + text</option>
             </select>
           </label>
+          <label>
+            <span class="panel-kicker">Dispatch Input</span>
+            <textarea id="agent-input" class="agent-input" placeholder="Snippet or thread text to dispatch appears here. You can paste or edit before sending."></textarea>
+          </label>
         </div>
         <p class="status-inline" id="response-mode-chip">Reply mode: text only</p>
         <div class="agent-output" id="agent-output">
           <p>Agent output will appear here.</p>
         </div>
-        <div class="pane-actions">
+        <div class="pane-actions agent-pane-actions">
           <button class="action-button" type="button" id="auto-send-toggle">Push+Send Voice: Off</button>
           <button class="action-button" type="button" id="send-to-agent">Send Now</button>
+          <button class="action-button" type="button" id="clear-agent-io">Clear Input/Output</button>
           <button class="action-button" type="button" id="clear-agent-output">Clear Output</button>
+          <button class="action-button" type="button" id="new-agent-session">Start New Agent Session</button>
           <button class="action-button" type="button" id="open-relay">Relay</button>
           <button class="action-button" type="button" id="sync-settings">Factory</button>
         </div>

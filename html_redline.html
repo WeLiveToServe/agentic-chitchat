@@ -2,14 +2,474 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=html_desktop_mockup.html">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WhisPTT Redirect</title>
+  <title>WhisPTT Desktop Workspace</title>
+  <link rel="stylesheet" href="assets/css/theme.css">
+  <style>
+    .desktop-shell {
+      width: min(98vw, 1720px);
+      min-height: min(94vh, 980px);
+      border-radius: 24px;
+      border: 1px solid rgba(99, 255, 131, 0.24);
+      background:
+        radial-gradient(circle at top right, rgba(122, 255, 244, 0.08), transparent 32%),
+        linear-gradient(180deg, rgba(7, 12, 7, 0.98), rgba(2, 4, 2, 0.98));
+      box-shadow: var(--shadow-outer);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .desktop-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 20px 10px;
+      border-bottom: 1px solid rgba(99, 255, 131, 0.14);
+      background: linear-gradient(180deg, rgba(122, 255, 244, 0.1), rgba(99, 255, 131, 0.03));
+    }
+
+    .desktop-header h1 {
+      margin: 0;
+      font-size: 1.04rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: var(--font-display);
+    }
+
+    .desktop-grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 285px minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+      padding: 14px;
+      overflow-x: auto;
+    }
+
+    .pane {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--panel-edge);
+      border-radius: 20px;
+      background: var(--panel-bg);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .pane h2 {
+      margin: 0;
+      font-size: 0.84rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--matrix-cyan);
+    }
+
+    .thread-list,
+    .snippet-list {
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .snippet-separator {
+      margin: 6px 0;
+      color: var(--matrix-cyan);
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(122, 255, 244, 0.3);
+      user-select: none;
+    }
+
+    .thread-card,
+    .snippet-card {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(99, 255, 131, 0.14);
+      border-radius: 14px;
+      background: rgba(10, 14, 10, 0.9);
+      color: inherit;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-mid);
+    }
+
+    .thread-card:hover,
+    .thread-card:focus-visible,
+    .thread-card--active,
+    .snippet-card:hover,
+    .snippet-card:focus-visible,
+    .snippet-card--active {
+      outline: none;
+      transform: translateY(-1px);
+      border-color: rgba(122, 255, 244, 0.44);
+      box-shadow: 0 0 18px rgba(99, 255, 131, 0.1);
+    }
+
+    .snippet-card--new {
+      animation: snippet-pop 240ms ease-out;
+    }
+
+    .snippet-card--shifted {
+      animation: snippet-shift-down 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes snippet-pop {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes snippet-shift-down {
+      from {
+        transform: translateY(-26px);
+        opacity: 0.75;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .thread-card__title,
+    .snippet-card__text {
+      margin: 0;
+      line-height: 1.55;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+    }
+
+    .thread-card__meta,
+    .snippet-card__meta,
+    .thread-card__preview {
+      margin: 5px 0 0;
+      color: var(--text-soft);
+      font-size: 0.67rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .snippet-editor-wrap {
+      position: relative;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+    }
+
+    .editor-caret-hint {
+      position: absolute;
+      left: 30px;
+      top: 78px;
+      color: var(--matrix-cyan);
+      font-size: 1rem;
+      line-height: 1;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 160ms ease;
+      animation: caret-blink 1s steps(1) infinite;
+      z-index: 6;
+    }
+
+    .editor-caret-hint--visible {
+      opacity: 0.92;
+    }
+
+    @keyframes caret-blink {
+      0%, 48% {
+        opacity: 1;
+      }
+      49%, 100% {
+        opacity: 0;
+      }
+    }
+
+    .snippet-title-input {
+      min-height: 44px;
+      padding-right: 130px;
+    }
+
+    .snippet-editor {
+      min-height: 520px;
+      height: 100%;
+      border-radius: 16px;
+      border: 1px solid rgba(99, 255, 131, 0.24);
+      background: rgba(5, 8, 5, 0.9);
+      color: var(--text-main);
+      padding: 16px 18px 84px 18px;
+      font-size: 0.96rem;
+      line-height: 1.64;
+      resize: none;
+    }
+
+    .snippet-editor-mic {
+      width: 74px;
+      height: 74px;
+      border: 1px solid rgba(122, 255, 244, 0.46);
+      background: linear-gradient(180deg, rgba(20, 32, 20, 0.95), rgba(7, 12, 7, 0.96));
+    }
+
+    .snippet-editor-mic .control-button__icon {
+      width: 42px;
+      height: 42px;
+    }
+
+    .pane-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .snippet-pane-actions,
+    .agent-pane-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .snippet-pane-actions .action-button,
+    .agent-pane-actions .action-button {
+      width: 100%;
+    }
+
+    .snippet-editor-quick-actions {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      z-index: 7;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: center;
+      gap: 8px;
+    }
+
+    .snippet-editor-quick-actions .action-button {
+      min-height: 36px;
+      font-size: 0.63rem;
+      letter-spacing: 0.1em;
+      padding: 0 10px;
+      white-space: nowrap;
+      width: 100%;
+    }
+
+    .snippet-editor-mic {
+      grid-column: 3;
+      grid-row: 2;
+      justify-self: end;
+    }
+
+    .agent-controls {
+      display: grid;
+      gap: 10px;
+    }
+
+    .agent-input {
+      min-height: 168px;
+      resize: vertical;
+      border-radius: 14px;
+      border: 1px solid rgba(99, 255, 131, 0.18);
+      background: rgba(5, 8, 5, 0.86);
+      color: var(--text-main);
+      padding: 12px 14px;
+      line-height: 1.56;
+    }
+
+    .agent-output {
+      min-height: 420px;
+      overflow: auto;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(99, 255, 131, 0.16);
+      background: rgba(5, 8, 5, 0.82);
+    }
+
+    .agent-output p {
+      margin: 0;
+      white-space: pre-wrap;
+      line-height: 1.62;
+      font-size: 0.9rem;
+    }
+
+    .status-inline {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      min-height: 1.1rem;
+    }
+
+    .desktop-bottom-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px 14px;
+      border-top: 1px solid rgba(99, 255, 131, 0.12);
+      background: linear-gradient(180deg, rgba(8, 12, 8, 0.82), rgba(5, 8, 5, 0.94));
+    }
+
+    .desktop-bottom-nav .bottom-nav__item {
+      width: 46px;
+      height: 46px;
+    }
+
+    @media (max-width: 1400px) {
+      .desktop-grid {
+        grid-template-columns: 260px minmax(0, 1fr) minmax(0, 1fr);
+      }
+      .snippet-editor {
+        min-height: 420px;
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .desktop-grid {
+        grid-template-columns: 240px minmax(560px, 1fr) minmax(560px, 1fr);
+      }
+      .snippet-editor {
+        min-height: 320px;
+      }
+      .agent-output {
+        min-height: 260px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <p>Redirecting to desktop workspace...</p>
-  <script>
-    window.location.replace("html_desktop_mockup.html");
-  </script>
+  <div class="desktop-shell">
+    <header class="desktop-header">
+      <h1>WhisPTT Desktop Workspace</h1>
+      <div class="chip-row">
+        <span class="chip chip--accent" id="thread-count-chip">0 stacks</span>
+        <span class="chip" id="agent-pref-chip">Vanilla</span>
+      </div>
+    </header>
+
+    <main class="desktop-grid">
+      <section class="pane">
+        <h2>Thread Management</h2>
+        <div class="chip-row">
+          <span class="chip" id="active-thread-chip">No active stack</span>
+          <span class="chip" id="snippet-count-chip">0 snippets</span>
+        </div>
+        <div class="thread-list" id="thread-list"></div>
+        <div class="pane-actions">
+          <button class="action-button" type="button" id="start-new-thread">Start New</button>
+          <button class="action-button" type="button" id="switch-thread">Switch</button>
+          <button class="action-button" type="button" id="clear-active-thread">Clear</button>
+        </div>
+      </section>
+
+      <section class="pane">
+        <h2>Snippet Editor</h2>
+        <div class="chip-row">
+          <span class="chip chip--accent" id="active-snippet-chip">No snippet selected</span>
+          <span class="chip" id="active-thread-timer">Active Stack</span>
+          <span class="chip" id="recording-mode-chip">Voice capture</span>
+        </div>
+        <div class="snippet-editor-wrap">
+          <input id="thread-title-input" class="snippet-title-input" type="text" placeholder="Thread title">
+          <textarea id="snippet-editor" class="snippet-editor" placeholder="Select a snippet to edit, or type text and add a new snippet."></textarea>
+          <div id="editor-caret-hint" class="editor-caret-hint">|</div>
+          <div class="snippet-editor-quick-actions">
+            <button class="action-button" type="button" id="new-snippet-inline">New Snippet</button>
+            <button class="action-button" type="button" id="start-new-thread-inline">Start New Thread</button>
+            <button class="action-button" type="button" id="push-snippet-dispatch">Push Snippet To Dispatch</button>
+            <button class="action-button" type="button" id="push-thread-dispatch">Push Thread To Dispatch</button>
+            <button class="mic-button snippet-editor-mic" type="button" id="mic-button" aria-label="Record snippet">
+              <img src="assets/svg-assets/action-menu-svg-icons/mic-simple.svg" class="control-button__icon control-button__icon--mic" alt="">
+            </button>
+          </div>
+        </div>
+        <div class="snippet-list" id="snippet-list"></div>
+        <p class="transcription-placeholder" id="snippet-placeholder">Record or add text to begin.</p>
+        <div class="pane-actions snippet-pane-actions">
+          <button class="action-button" type="button" id="save-snippet">Save Edit</button>
+          <button class="action-button" type="button" id="add-text-snippet">Add New Snippet</button>
+          <button class="action-button" type="button" id="save-thread-title">Save Title</button>
+          <button class="action-button" type="button" id="copy-thread">Copy Thread</button>
+          <button class="action-button" type="button" id="export-thread">Export Thread</button>
+        </div>
+        <p class="status-inline" id="editor-status">Edits are saved in place for the selected snippet.</p>
+      </section>
+
+      <section class="pane">
+        <h2>Agent Dispatch</h2>
+        <div class="agent-controls">
+          <label>
+            <span class="panel-kicker">Agent</span>
+            <select id="agent-select"></select>
+          </label>
+          <label>
+            <span class="panel-kicker">Send</span>
+            <select id="input-mode-select">
+              <option value="snippet">Active snippet</option>
+              <option value="thread">Whole thread</option>
+            </select>
+          </label>
+          <label>
+            <span class="panel-kicker">Reply Mode</span>
+            <select id="response-mode-select">
+              <option value="text_only">Text only</option>
+              <option value="voice_text">Voice + text</option>
+            </select>
+          </label>
+          <label>
+            <span class="panel-kicker">Dispatch Input</span>
+            <textarea id="agent-input" class="agent-input" placeholder="Snippet or thread text to dispatch appears here. You can paste or edit before sending."></textarea>
+          </label>
+        </div>
+        <p class="status-inline" id="response-mode-chip">Reply mode: text only</p>
+        <div class="agent-output" id="agent-output">
+          <p>Agent output will appear here.</p>
+        </div>
+        <div class="pane-actions agent-pane-actions">
+          <button class="action-button" type="button" id="auto-send-toggle">Push+Send Voice: Off</button>
+          <button class="action-button" type="button" id="send-to-agent">Send Now</button>
+          <button class="action-button" type="button" id="clear-agent-io">Clear Input/Output</button>
+          <button class="action-button" type="button" id="clear-agent-output">Clear Output</button>
+          <button class="action-button" type="button" id="new-agent-session">Start New Agent Session</button>
+          <button class="action-button" type="button" id="open-relay">Relay</button>
+          <button class="action-button" type="button" id="sync-settings">Factory</button>
+        </div>
+        <p class="status-inline" id="agent-status">Use local agents for current testing.</p>
+      </section>
+    </main>
+
+    <div class="desktop-bottom-nav" aria-label="Primary navigation">
+      <button class="bottom-nav__item" type="button" aria-label="Agents" id="nav-chat">
+        <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="Agents" class="bottom-nav__icon">
+      </button>
+      <button class="bottom-nav__item" type="button" aria-label="Profile" id="nav-profile">
+        <img src="assets/svg-assets/lower-menu-svg-icons/L1-profile-page-menu.svg" alt="Profile" class="bottom-nav__icon">
+      </button>
+      <button class="bottom-nav__item bottom-nav__item--active" type="button" aria-label="Recorder" id="nav-recorder">
+        <img src="assets/svg-assets/lower-menu-svg-icons/C-mic-center-menu.svg" alt="Recorder" class="bottom-nav__icon">
+      </button>
+      <button class="bottom-nav__item" type="button" aria-label="Edit Transcript" id="nav-editor">
+        <img src="assets/svg-assets/lower-menu-svg-icons/R1-edit-transcript-menu.svg" alt="Edit Transcript" class="bottom-nav__icon">
+      </button>
+      <button class="bottom-nav__item" type="button" aria-label="Android" id="nav-android">
+        <img src="assets/svg-assets/lower-menu-svg-icons/R2-android-menu.svg" alt="Android" class="bottom-nav__icon">
+      </button>
+    </div>
+    <p class="status-inline" id="status-text" style="padding: 0 14px 12px;">Tap the mic to record into the active snippet stack.</p>
+  </div>
+
+  <script src="assets/js/redline_workspace.js"></script>
 </body>
 </html>

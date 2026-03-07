@@ -387,6 +387,7 @@
         <div class="pane-actions">
           <button class="action-button" type="button" id="new-local-conversation">New Local Relay</button>
           <button class="action-button" type="button" id="new-openclaw-conversation">OpenClaw Channel</button>
+          <button class="action-button" type="button" id="new-gemini-conversation">Gemini Flash Channel</button>
           <button class="action-button" type="button" id="switch-conversation">Switch</button>
         </div>
       </section>
@@ -419,6 +420,14 @@
         <div class="relay-compose-stack">
           <div class="transport-card">
             <p class="transport-card__heading">Transport</p>
+            <label>
+              <span class="panel-kicker">Channel</span>
+              <select id="compose-transport-select">
+                <option value="local">Local Friend Relay</option>
+                <option value="gemini_flash_channel">Gemini Flash Channel</option>
+                <option value="telegram_openclaw">OpenClaw Telegram Channel</option>
+              </select>
+            </label>
             <div class="chip-row">
               <span class="chip chip--accent" id="conversation-mode-chip">Local friend relay</span>
               <span class="chip" id="sender-role-chip">You</span>
@@ -437,11 +446,8 @@
           </label>
 
           <div class="compose-row">
-            <button class="action-button" type="button" id="send-text-message">Send Text</button>
-            <button class="action-button" type="button" id="send-thread-to-openclaw">Send Transcript To OpenClaw</button>
-            <button class="mic-button relay-mic" type="button" id="conversation-mic-button" aria-label="Record conversation message">
-              <img src="assets/svg-assets/action-menu-svg-icons/mic-simple.svg" class="control-button__icon control-button__icon--mic" alt="">
-            </button>
+            <button class="action-button" type="button" id="send-text-message">Send Text Chit</button>
+            <button class="action-button" type="button" id="send-voice-chit">Send Voice Chit</button>
           </div>
 
           <div class="pane-actions">

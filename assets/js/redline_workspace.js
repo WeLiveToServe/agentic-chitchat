@@ -21,6 +21,8 @@
     stopInFlight: false,
     prefs: loadPrefs(),
     currentUtterance: null,
+    agentSessionId: createSessionId(),
+    inlineSnippetRecording: false,
   };
 
   const ui = {
@@ -36,20 +38,26 @@
     activeSnippetChip: document.getElementById("active-snippet-chip"),
     threadTitleInput: document.getElementById("thread-title-input"),
     snippetEditor: document.getElementById("snippet-editor"),
+    editorCaretHint: document.getElementById("editor-caret-hint"),
     editorStatus: document.getElementById("editor-status"),
     agentSelect: document.getElementById("agent-select"),
     inputModeSelect: document.getElementById("input-mode-select"),
     responseModeSelect: document.getElementById("response-mode-select"),
+    agentInput: document.getElementById("agent-input"),
     responseModeChip: document.getElementById("response-mode-chip"),
     autoSendToggle: document.getElementById("auto-send-toggle"),
     sendToAgent: document.getElementById("send-to-agent"),
+    clearAgentIO: document.getElementById("clear-agent-io"),
     clearAgentOutput: document.getElementById("clear-agent-output"),
+    newAgentSession: document.getElementById("new-agent-session"),
     openRelay: document.getElementById("open-relay"),
     agentStatus: document.getElementById("agent-status"),
     agentOutput: document.getElementById("agent-output"),
     micButton: document.getElementById("mic-button"),
     statusText: document.getElementById("status-text"),
     startNewThread: document.getElementById("start-new-thread"),
+    startNewThreadInline: document.getElementById("start-new-thread-inline"),
+    newSnippetInline: document.getElementById("new-snippet-inline"),
     switchThread: document.getElementById("switch-thread"),
     saveSnippet: document.getElementById("save-snippet"),
     addTextSnippet: document.getElementById("add-text-snippet"),
@@ -193,7 +201,14 @@
     ui.snippetCountChip.textContent = `${detail.snippets.length} snippet${detail.snippets.length === 1 ? "" : "s"}`;
     ui.activeThreadTimer.textContent = `Updated ${formatTimestamp(detail.thread.updated_at)}`;
 
-    detail.snippets.forEach((snippet) => {
+    const orderedSnippets = [...detail.snippets].reverse();
+    orderedSnippets.forEach((snippet, index) => {
+      if (index > 0) {
+        const separator = document.createElement("div");
+        separator.className = "snippet-separator";
+        separator.textContent = "-------";
+        ui.snippetList.appendChild(separator);
+      }
       const card = document.createElement("button");
       card.type = "button";
       card.className = `snippet-card${snippet.id === state.activeSnippetId ? " snippet-card--active" : ""}`;
@@ -222,6 +237,15 @@
       ui.snippetEditor.value = "";
       ui.saveSnippet.disabled = true;
     }
+    syncEditorCaretHint();
+  }
+
+  function syncEditorCaretHint() {
+    if (!ui.editorCaretHint || !ui.snippetEditor) {
+      return;
+    }
+    const show = !ui.snippetEditor.value.trim() && !state.isRecording;
+    ui.editorCaretHint.classList.toggle("editor-caret-hint--visible", show);
   }
 
   function renderAgentPrefs() {
@@ -245,6 +269,13 @@
     ui.responseModeSelect.value = state.prefs.responseMode;
     ui.agentSelect.value = state.prefs.agentId;
     savePrefs();
+  }
+
+  function createSessionId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
   function renderAll() {
@@ -384,6 +415,49 @@
     setEditorStatus("New text snippet added to the active stack.", "success");
   }
 
+  async function createSnippetFromInlineAction() {
+    const textDraft = ui.snippetEditor.value.trim();
+    if (textDraft) {
+      await addTextSnippet();
+      state.activeSnippetId = null;
+      renderSnippets();
+      renderEditor();
+      ui.snippetEditor.focus();
+      setEditorStatus("Snippet saved. Continue with the next snippet.");
+      return;
+    }
+    if (state.isRecording) {
+      await stopRecording();
+      return;
+    }
+    state.inlineSnippetRecording = true;
+    await startRecording();
+    setEditorStatus("Recording started for a new voice snippet.", "success");
+  }
+
+  async function ensureSnippetForDispatch() {
+    let snippet = getActiveSnippet();
+    if (snippet) {
+      return snippet;
+    }
+    if (!state.activeThread) {
+      return null;
+    }
+    const draft = ui.snippetEditor.value.trim();
+    if (!draft) {
+      return null;
+    }
+    const created = await api(`/api/threads/${state.activeThread.thread.id}/snippets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript: draft, source: "text" }),
+    });
+    await refreshWorkspace({ selectSnippetId: created.id });
+    setEditorStatus("Draft text saved as a new snippet.", "success");
+    snippet = getActiveSnippet();
+    return snippet || null;
+  }
+
   async function clearActiveThread() {
     if (!state.activeThread) {
       return;
@@ -459,16 +533,30 @@
       response_mode: state.prefs.responseMode,
       thread_id: state.activeThread.thread.id,
       snippet_id: null,
-      text: null,
+      text: ui.agentInput ? ui.agentInput.value.trim() || null : null,
+      session_id: state.agentSessionId,
     };
 
     if (inputMode === "snippet") {
       const snippet = overrides && overrides.snippetId ? state.activeThread.snippets.find((item) => item.id === overrides.snippetId) : getActiveSnippet();
       if (!snippet) {
-        setAgentStatus("Select a snippet before sending.", "agent-status-text--error");
-        return;
+        if (payload.text) {
+          payload.input_mode = "text";
+        } else {
+          setAgentStatus("Select a snippet or enter dispatch text before sending.", "agent-status-text--error");
+          return;
+        }
       }
-      payload.snippet_id = snippet.id;
+      if (snippet) {
+        payload.snippet_id = snippet.id;
+        if (!payload.text && ui.agentInput) {
+          ui.agentInput.value = snippet.transcript || "";
+          payload.text = ui.agentInput.value.trim() || null;
+        }
+      }
+    } else if (inputMode === "thread" && !payload.text && ui.agentInput) {
+      ui.agentInput.value = combinedThreadText();
+      payload.text = ui.agentInput.value.trim() || null;
     }
 
     setAgentStatus("Sending to local agent harness...", "agent-status-text--info");
@@ -494,6 +582,7 @@
     state.isRecording = true;
     ui.micButton.classList.add("mic-button--armed", "mic-button--recording");
     setStatus("Recording into the active snippet stack...", "success");
+    syncEditorCaretHint();
   }
 
   async function stopRecording() {
@@ -510,7 +599,15 @@
       ui.micButton.classList.remove("mic-button--armed", "mic-button--recording");
       await refreshWorkspace({ selectSnippetId: result.snippet_id });
       setStatus(`Snippet #${result.snippet_position} appended to ${state.activeThread.thread.title}.`, "success");
-      setEditorStatus("Newest voice snippet selected.", "success");
+      if (state.inlineSnippetRecording) {
+        state.activeSnippetId = null;
+        renderSnippets();
+        renderEditor();
+        ui.snippetEditor.focus();
+        setEditorStatus("Voice snippet saved. Continue with the next snippet.");
+      } else {
+        setEditorStatus("Newest voice snippet selected.", "success");
+      }
       if (state.prefs.autoSendVoice) {
         await sendToAgent({ inputMode: "snippet", snippetId: result.snippet_id });
       }
@@ -520,6 +617,8 @@
       setStatus(error.message || "Recording failed.", "error");
     } finally {
       state.stopInFlight = false;
+      state.inlineSnippetRecording = false;
+      syncEditorCaretHint();
     }
   }
 
@@ -536,6 +635,18 @@
     ui.startNewThread.addEventListener("click", () => {
       createThread().catch((error) => setStatus(error.message, "error"));
     });
+
+    if (ui.startNewThreadInline) {
+      ui.startNewThreadInline.addEventListener("click", () => {
+        createThread().catch((error) => setStatus(error.message, "error"));
+      });
+    }
+
+    if (ui.newSnippetInline) {
+      ui.newSnippetInline.addEventListener("click", () => {
+        createSnippetFromInlineAction().catch((error) => setEditorStatus(error.message, "error"));
+      });
+    }
 
     ui.switchThread.addEventListener("click", () => {
       cycleThread().catch((error) => setStatus(error.message, "error"));
@@ -576,12 +687,25 @@
 
     if (ui.pushSnippetDispatch) {
       ui.pushSnippetDispatch.addEventListener("click", () => {
-        sendToAgent({ inputMode: "snippet" }).catch((error) => setAgentStatus(error.message, "agent-status-text--error"));
+        (async () => {
+          const snippet = await ensureSnippetForDispatch();
+          if (!snippet) {
+            setAgentStatus("Type text or select a snippet before dispatch.", "agent-status-text--error");
+            return;
+          }
+          if (ui.agentInput) {
+            ui.agentInput.value = snippet.transcript || "";
+          }
+          await sendToAgent({ inputMode: "snippet", snippetId: snippet.id });
+        })().catch((error) => setAgentStatus(error.message, "agent-status-text--error"));
       });
     }
 
     if (ui.pushThreadDispatch) {
       ui.pushThreadDispatch.addEventListener("click", () => {
+        if (ui.agentInput) {
+          ui.agentInput.value = combinedThreadText();
+        }
         sendToAgent({ inputMode: "thread" }).catch((error) => setAgentStatus(error.message, "agent-status-text--error"));
       });
     }
@@ -591,6 +715,26 @@
       renderAgentOutput("");
       setAgentStatus("Agent output cleared.");
     });
+
+    if (ui.clearAgentIO) {
+      ui.clearAgentIO.addEventListener("click", () => {
+        if (ui.agentInput) {
+          ui.agentInput.value = "";
+        }
+        stopSpeech();
+        renderAgentOutput("");
+        setAgentStatus("Dispatch input and output cleared.");
+      });
+    }
+
+    if (ui.newAgentSession) {
+      ui.newAgentSession.addEventListener("click", () => {
+        state.agentSessionId = createSessionId();
+        stopSpeech();
+        renderAgentOutput("");
+        setAgentStatus(`Started new agent session: ${state.agentSessionId.slice(0, 8)}...`, "agent-status-text--info");
+      });
+    }
 
     if (ui.openRelay) {
       ui.openRelay.addEventListener("click", () => {
@@ -608,6 +752,10 @@
       } else {
         startRecording().catch((error) => setStatus(error.message, "error"));
       }
+    });
+
+    ui.snippetEditor.addEventListener("input", () => {
+      syncEditorCaretHint();
     });
 
     ui.syncSettings.addEventListener("click", () => {

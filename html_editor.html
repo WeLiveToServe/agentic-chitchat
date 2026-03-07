@@ -1,48 +1,57 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WhisPTT Transcript Editor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhisPTT Snippet Editor</title>
   <link rel="stylesheet" href="assets/css/theme.css">
   <style>
-    .editor-textarea {
+    .editor-page {
+      display: grid;
+      gap: 12px;
       flex: 1;
       min-height: 0;
-      width: 100%;
-      border: none;
-      background: transparent;
-      color: var(--matrix-green);
-      font-family: var(--font-terminal);
-      font-size: 0.75rem;
-      line-height: 1.5;
-      letter-spacing: 0.04em;
-      resize: none;
-      outline: none;
-      white-space: pre-wrap;
-      overflow-y: auto;
-      padding: 0;
     }
-    .editor-textarea::placeholder {
-      color: var(--text-soft);
+
+    .editor-panel {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .editor-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .editor-textarea {
+      min-height: 300px;
     }
   </style>
 </head>
 <body>
-  <div class="app-shell app-shell--editor">
-    <header class="top-banner"><img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT logo" class="top-banner__logo"></header>
+  <div class="app-shell">
+    <header class="top-banner">
+      <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT logo" class="top-banner__logo">
+    </header>
 
     <main class="screen">
-      <section class="transcription-panel" aria-label="Transcript editor">
-        <div class="status-bar">
-          <span class="timer status-bar__timer" id="snippet-timer">TRANSCRIPT EDITOR</span>
-        </div>
-        <textarea id="transcript-editor" class="editor-textarea" placeholder="Transcript will appear here..."></textarea>
-      </section>
-
-      <div class="recording-controls" aria-label="Editor controls">
-        <button class="mic-button" type="button" id="edit-button" aria-label="Editing active">
-          <img src="assets/svg-assets/lower-menu-svg-icons/R1-edit-transcript-menu.svg" alt="Edit Transcript" class="control-button__icon control-button__icon--mic">
-        </button>
+      <div class="editor-page">
+        <section class="editor-panel content-panel">
+          <div class="status-bar">
+            <span class="timer">Snippet Editor</span>
+            <span class="chip chip--accent" id="editor-thread-chip">No active stack</span>
+          </div>
+          <p class="panel-copy" id="editor-snippet-meta">Select a snippet in the redline workspace to edit it here.</p>
+          <textarea id="transcript-editor" class="editor-textarea" placeholder="Active snippet text will appear here."></textarea>
+          <div class="editor-actions">
+            <button class="action-button" type="button" id="save-snippet">Save Snippet</button>
+            <button class="action-button" type="button" id="add-snippet">Add As New</button>
+            <button class="action-button" type="button" id="open-redline">Open Redline</button>
+          </div>
+          <p class="status-text" id="editor-status">This page edits the latest snippet from the active stack.</p>
+        </section>
       </div>
     </main>
 
@@ -65,94 +74,6 @@
     </nav>
   </div>
 
-  <script>
-    (function () {
-      const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? "http://127.0.0.1:7000"
-        : (window.API_BASE_URL || "http://127.0.0.1:7000");
-
-      const editor = document.getElementById('transcript-editor');
-      const editorMicButton = document.getElementById('edit-button');
-      const navRecorderButton = document.getElementById('nav-recorder');
-      const navAndroidButton = document.getElementById('nav-android');
-      const navChatButton = document.getElementById('nav-chat');
-      const navProfileButton = document.getElementById('nav-profile');
-      const navEditorButton = document.getElementById('nav-editor');
-      const STORAGE_KEY = 'whisptt.editorPrefill';
-
-      function consumePrefill() {
-        try {
-          const raw = sessionStorage.getItem(STORAGE_KEY);
-          if (!raw) {
-            return null;
-          }
-          sessionStorage.removeItem(STORAGE_KEY);
-          const payload = JSON.parse(raw);
-          if (payload && typeof payload.text === 'string' && payload.text.trim().length) {
-            return payload.text;
-          }
-        } catch (error) {
-          console.warn('Failed to read editor prefill', error);
-        }
-        return null;
-      }
-
-      async function loadLatestTranscript() {
-        try {
-          const response = await fetch(`${API_BASE}/api/chits`);
-          if (!response.ok) {
-            return;
-          }
-          const records = await response.json();
-          if (!Array.isArray(records) || !records.length) {
-            editor.value = '';
-            return;
-          }
-          const latest = records[records.length - 1];
-          editor.value = latest.transcript || '';
-          editor.scrollTop = 0;
-        } catch (error) {
-          console.warn('Failed to load transcript', error);
-        }
-      }
-
-      const prefill = consumePrefill();
-      if (prefill !== null) {
-        editor.value = prefill;
-        editor.scrollTop = 0;
-      } else {
-        loadLatestTranscript();
-      }
-
-      const go = (path) => { window.location.href = path; };
-
-      if (navRecorderButton) { navRecorderButton.addEventListener('click', () => go('html_redline.html')); }
-      if (navAndroidButton) { navAndroidButton.addEventListener('click', () => go('html_android.html')); }
-      if (navChatButton) { navChatButton.addEventListener('click', () => go('html_factory.html')); }
-      if (navProfileButton) { navProfileButton.addEventListener('click', () => go('html_profile.html')); }
-      if (navEditorButton) { navEditorButton.addEventListener('click', () => go('html_editor.html')); }
-
-      if (editorMicButton) {
-        editorMicButton.addEventListener('click', () => go('html_redline.html'));
-      }
-    })();
-  </script>
+  <script src="assets/js/editor.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -2,113 +2,143 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WhisPTT - Agent Factory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhisPTT Agent Factory</title>
   <link rel="stylesheet" href="assets/css/theme.css">
   <style>
+    .factory-layout {
+      display: grid;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .factory-panel {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
     .factory-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(3, minmax(96px, 1fr));
-      gap: 1rem;
-      padding: 0.5rem 0.35rem 0.7rem;
-      overflow-y: auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
     }
 
-    .factory-cell {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--panel-line);
-      border-radius: 14px;
-      background: rgba(8, 17, 8, 0.55);
-      box-shadow: inset 0 0 14px rgba(59, 255, 101, 0.08);
-      transition: border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
-      min-height: 96px;
-      padding: 0.65rem;
-      text-align: center;
+    .factory-card {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(99, 255, 131, 0.12);
+      background: linear-gradient(180deg, rgba(17, 24, 17, 0.95), rgba(8, 11, 8, 0.95));
       cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, box-shadow 180ms ease;
     }
 
-    .factory-cell:hover,
-    .factory-cell:focus-visible {
+    .factory-card:hover,
+    .factory-card:focus-visible,
+    .factory-card--active {
       outline: none;
-      border-color: var(--panel-line-strong);
-      box-shadow: 0 0 12px rgba(59, 255, 101, 0.25), inset 0 0 16px rgba(59, 255, 101, 0.12);
       transform: translateY(-1px);
+      border-color: rgba(122, 255, 244, 0.42);
+      box-shadow: 0 0 18px rgba(99, 255, 131, 0.12);
     }
 
-    .factory-cell:active {
-      transform: translateY(1px);
-      box-shadow: inset 0 0 18px rgba(59, 255, 101, 0.16);
-    }
-
-    .factory-cell svg,
-    .factory-cell img {
-      width: 54px;
-      height: 54px;
-      color: var(--matrix-green);
-      filter: drop-shadow(0 0 10px rgba(59, 255, 101, 0.35));
-      margin-bottom: 0.45rem;
-      pointer-events: none;
-    }
-
-    .factory-label {
-      font-size: 0.74rem;
-      letter-spacing: 0.08em;
+    .factory-card__title {
+      margin: 0 0 8px;
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
+    }
+
+    .factory-card__copy {
+      margin: 0;
+      font-size: 0.76rem;
+      line-height: 1.6;
       color: var(--text-soft);
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .factory-footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    @media (max-width: 760px) {
+      .factory-grid,
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="app-shell app-shell--recorder">
+  <div class="app-shell">
     <header class="top-banner">
       <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT logo" class="top-banner__logo">
     </header>
 
     <main class="screen">
-      <section class="transcription-panel" aria-label="Agent factory directory">
-        <div class="status-bar">
-          <span class="timer status-bar__timer">AGENT FACTORY</span>
-        </div>
+      <div class="factory-layout">
+        <section class="factory-panel" aria-label="Factory overview">
+          <div class="status-bar">
+            <span class="timer">Agent Factory</span>
+            <span class="chip chip--accent" id="factory-thread-chip">No active stack</span>
+          </div>
+          <p class="panel-copy">
+            Tune the local agent harness for the redline workspace. OpenClaw is featured here,
+            but both presets stay fully local and testable without external endpoints.
+          </p>
+        </section>
 
-        <div class="factory-grid" role="grid" aria-label="Agent templates">
-          <button class="factory-cell" role="gridcell" aria-label="Resume Builder">
-            <img src="assets/svg-assets/html-icons/bookmark-icon.svg" alt="">
-            <span class="factory-label">Resume Builder</span>
-          </button>
-          <button class="factory-cell" role="gridcell" aria-label="Interview Coach">
-            <img src="assets/svg-assets/html-icons/pencil-neon.svg" alt="">
-            <span class="factory-label">Interview Coach</span>
-          </button>
-          <button class="factory-cell" role="gridcell" aria-label="Sales Pitch">
-            <img src="assets/svg-assets/html-icons/export-icon.svg" alt="">
-            <span class="factory-label">Sales Pitch</span>
-          </button>
-          <button class="factory-cell" role="gridcell" aria-label="Meeting Notes">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <span class="factory-label">Meeting Notes</span>
-          </button>
-          <button class="factory-cell" role="gridcell" aria-label="Research Buddy">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span class="factory-label">Research Buddy</span>
-          </button>
-          <button class="factory-cell" role="gridcell" aria-label="Coming Soon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 16h.01"/>
-              <path d="M12 8v4"/>
-            </svg>
-            <span class="factory-label">Coming Soon</span>
-          </button>
-        </div>
-      </section>
+        <section class="factory-panel" aria-label="Available agent presets">
+          <div class="status-bar">
+            <span class="timer">Presets</span>
+            <span class="chip" id="factory-agent-chip">Vanilla selected</span>
+          </div>
+          <div class="factory-grid" id="factory-grid"></div>
+        </section>
+
+        <section class="factory-panel" aria-label="Dispatch settings">
+          <div class="status-bar">
+            <span class="timer">Dispatch Settings</span>
+            <span class="chip" id="factory-response-chip">Text only</span>
+          </div>
+          <div class="settings-grid">
+            <label>
+              <span class="panel-kicker">Send Mode</span>
+              <select id="factory-input-mode">
+                <option value="snippet">Active snippet</option>
+                <option value="thread">Whole thread</option>
+              </select>
+            </label>
+            <label>
+              <span class="panel-kicker">Reply Mode</span>
+              <select id="factory-response-mode">
+                <option value="text_only">Text only</option>
+                <option value="voice_text">Voice + text</option>
+              </select>
+            </label>
+            <label>
+              <span class="panel-kicker">Voice Flow</span>
+              <select id="factory-auto-send">
+                <option value="off">Record only</option>
+                <option value="on">Push+Send after record</option>
+              </select>
+            </label>
+          </div>
+          <p class="status-text" id="factory-status">Saved settings sync with the redline workspace through local storage.</p>
+          <div class="factory-footer">
+            <button class="action-button" type="button" id="open-workspace">Open Redline</button>
+            <button class="action-button" type="button" id="focus-openclaw">Feature OpenClaw</button>
+          </div>
+        </section>
+      </div>
     </main>
 
     <nav class="bottom-nav" aria-label="Primary navigation">
@@ -130,26 +160,6 @@
     </nav>
   </div>
 
-  <script>
-    (function () {
-      const navRecorderButton = document.getElementById('nav-recorder');
-      const navEditorButton = document.getElementById('nav-editor');
-      const navAgentsButton = document.getElementById('nav-chat');
-      const navProfileButton = document.getElementById('nav-profile');
-      const navAndroidButton = document.getElementById('nav-android');
-
-      const go = (path) => { window.location.href = path; };
-
-      if (navRecorderButton) { navRecorderButton.addEventListener('click', () => go('html_redline.html')); }
-      if (navEditorButton) { navEditorButton.addEventListener('click', () => go('html_editor.html')); }
-      if (navProfileButton) { navProfileButton.addEventListener('click', () => go('html_profile.html')); }
-      if (navAndroidButton) { navAndroidButton.addEventListener('click', () => go('html_android.html')); }
-      if (navAgentsButton) {
-        navAgentsButton.addEventListener('click', (event) => {
-          event.preventDefault();
-        });
-      }
-    })();
-  </script>
+  <script src="assets/js/factory.js"></script>
 </body>
 </html>

@@ -25,12 +25,29 @@ logger = logging.getLogger(__name__)
 
 REALTIME_MODEL = os.getenv("WHISP_REALTIME_MODEL", "").strip()
 REALTIME_ENABLED = bool(REALTIME_MODEL)
+LIVE_CHUNKS_ENABLED = os.getenv("WHISP_ENABLE_LIVE_CHUNKS", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 REALTIME_SAMPLE_RATE = int(os.getenv("WHISP_REALTIME_SAMPLE_RATE", "24000"))
 REALTIME_INSTRUCTIONS = (
     os.getenv("WHISP_REALTIME_INSTRUCTIONS")
     or os.getenv("WHISP_TRANSCRIBE_APP_INSTRUCTIONS")
     or ""
 )
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r; using %s", name, raw, default)
+        return default
 
 
 class RecorderBusyError(RuntimeError):
@@ -88,11 +105,12 @@ class RecorderService:
         self._stream_queue: "queue.Queue[np.ndarray]" = queue.Queue()
         self._stream_thread: Optional[threading.Thread] = None
         self._stream_stop = threading.Event()
+        self._live_chunks_enabled = LIVE_CHUNKS_ENABLED
 
         self._current_recording_id: Optional[str] = None
         self._window_seconds = 4.0
         self._hop_seconds = 2.0
-        self._sample_rate = recorder_redline.DEFAULT_SAMPLE_RATE
+        self._sample_rate = _int_env("WHISP_INPUT_SAMPLE_RATE", recorder_redline.DEFAULT_SAMPLE_RATE)
         self._channels = recorder_redline.DEFAULT_CHANNELS
         self._max_duration_seconds = 30.0
         self._stream_deadline: Optional[float] = None
@@ -124,12 +142,15 @@ class RecorderService:
 
             self._initialize_realtime_bridge(recording_id)
 
-            self._stream_thread = threading.Thread(
-                target=self._stream_worker,
-                args=(recording_id, self._sample_rate, self._channels),
-                daemon=True,
-            )
-            self._stream_thread.start()
+            if self._live_chunks_enabled:
+                self._stream_thread = threading.Thread(
+                    target=self._stream_worker,
+                    args=(recording_id, self._sample_rate, self._channels),
+                    daemon=True,
+                )
+                self._stream_thread.start()
+            else:
+                self._stream_thread = None
 
             def worker() -> None:
                 try:

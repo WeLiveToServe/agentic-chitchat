@@ -17,6 +17,11 @@ sessions/
 # Logs
 *.log
 
+# Local secrets
+.env
+.env.local
+.env.*.local
+
 # OS/system files
 .DS_Store
 Thumbs.db

@@ -25,8 +25,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 108px;
-      padding: 20px 20px 16px;
+      height: 92px;
+      min-height: 92px;
+      max-height: 92px;
+      padding: 0;
       border-bottom: 1px solid rgba(99, 255, 131, 0.14);
       background: linear-gradient(180deg, rgba(122, 255, 244, 0.1), rgba(99, 255, 131, 0.03));
     }
@@ -34,31 +36,47 @@
     .banner-center {
       display: flex;
       align-items: center;
-      gap: 42px;
+      gap: 28px;
     }
 
     .banner-actions {
       display: flex;
       align-items: center;
-      gap: 56px;
+      gap: 24px;
     }
 
     .banner-action-button {
-      width: 86px;
-      height: 86px;
+      width: 78px;
+      height: 78px;
       border-radius: 999px;
-      border: 1px solid rgba(122, 255, 244, 0.5);
+      border: 1px solid rgba(99, 255, 131, 0.62);
       background: linear-gradient(180deg, rgba(20, 32, 20, 0.95), rgba(7, 12, 7, 0.96));
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 18px rgba(122, 255, 244, 0.18);
+      box-shadow: 0 0 26px rgba(99, 255, 131, 0.34);
       cursor: pointer;
     }
 
     .banner-action-button img {
-      width: 50px;
-      height: 50px;
+      width: 44px;
+      height: 44px;
+      filter: brightness(0) saturate(100%) invert(86%) sepia(57%) saturate(641%) hue-rotate(66deg) brightness(105%) contrast(103%)
+        drop-shadow(0 0 10px rgba(99, 255, 131, 0.88))
+        drop-shadow(0 0 16px rgba(99, 255, 131, 0.48));
+    }
+
+    .banner-action-button--active {
+      border-color: rgba(122, 255, 244, 0.86);
+      box-shadow:
+        0 0 36px rgba(99, 255, 131, 0.56),
+        inset 0 0 22px rgba(99, 255, 131, 0.18);
+    }
+
+    .banner-action-button--active img {
+      filter: brightness(0) saturate(100%) invert(86%) sepia(57%) saturate(641%) hue-rotate(66deg) brightness(110%) contrast(106%)
+        drop-shadow(0 0 14px rgba(99, 255, 131, 0.96))
+        drop-shadow(0 0 24px rgba(99, 255, 131, 0.58));
     }
 
     .banner-logo-wrap {
@@ -108,10 +126,17 @@
     .conversation-list,
     .relay-feed {
       min-height: 0;
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
+    }
+
+    .conversation-list {
+      overflow-y: scroll;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(122, 255, 244, 0.5) rgba(5, 8, 5, 0.55);
     }
 
     .conversation-card,
@@ -119,10 +144,10 @@
       width: 100%;
       text-align: left;
       border: 1px solid rgba(99, 255, 131, 0.14);
-      border-radius: 16px;
+      border-radius: 14px;
       background: rgba(10, 14, 10, 0.9);
       color: inherit;
-      padding: 12px 14px;
+      padding: 10px 12px;
       transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-mid);
     }
 
@@ -143,17 +168,31 @@
     .conversation-card__title,
     .message-card__body {
       margin: 0;
-      line-height: 1.58;
+      line-height: 1.55;
       white-space: pre-wrap;
     }
 
+    .conversation-card__title {
+      text-align: center;
+      font-size: 18px;
+    }
+
     .conversation-card__meta,
+    .conversation-card__preview,
     .message-card__meta {
-      margin: 0 0 6px;
+      margin: 5px 0 0;
       color: var(--text-soft);
-      font-size: 0.66rem;
-      letter-spacing: 0.12em;
+      font-size: 18px;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
+    }
+
+    .pane--chats {
+      grid-template-rows: auto 1fr;
+    }
+
+    .pane--chats .chip-row {
+      display: none;
     }
 
     .relay-toolbar {
@@ -395,16 +434,19 @@
   <div class="relay-shell">
     <header class="relay-header">
       <div class="banner-center">
+        <div class="banner-logo-wrap">
+          <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT" class="banner-logo">
+        </div>
         <div class="banner-actions" aria-label="Desktop quick actions">
-          <button class="banner-action-button" type="button" id="banner-bot" aria-label="Bot">
-            <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="">
-          </button>
-          <button class="banner-action-button" type="button" id="banner-chat" aria-label="Chat">
+          <a class="banner-action-button banner-action-button--active" id="banner-chat" aria-label="Chat" aria-current="page" href="html_chat.html" title="Open Chat">
             <img src="assets/svg-assets/lower-menu-svg-icons/L2-chat-menu.svg" alt="">
-          </button>
-          <button class="banner-action-button" type="button" id="banner-mic" aria-label="Mic">
+          </a>
+          <a class="banner-action-button" id="banner-mic" aria-label="Mic" href="html_redline.html" title="Open Chits">
             <img src="assets/svg-assets/action-menu-svg-icons/mic-classic-radio.svg" alt="">
-          </button>
+          </a>
+          <a class="banner-action-button" id="banner-bot" aria-label="Bot" href="html_factory.html" title="Open Factory">
+            <img src="assets/svg-assets/action-menu-svg-icons/robot-face-single.svg" alt="">
+          </a>
         </div>
         <div class="banner-logo-wrap">
           <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT" class="banner-logo">
@@ -418,8 +460,8 @@
     </header>
 
     <main class="relay-grid">
-      <section class="pane">
-        <h2>Conversations</h2>
+      <section class="pane pane--chats">
+        <h2>Chats</h2>
         <div class="chip-row">
           <span class="chip chip--accent" id="active-conversation-chip">No active chat</span>
           <span class="chip" id="message-count-chip">0 messages</span>

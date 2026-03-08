@@ -44,6 +44,7 @@
     inputModeSelect: document.getElementById("input-mode-select"),
     responseModeSelect: document.getElementById("response-mode-select"),
     agentInput: document.getElementById("agent-input"),
+    agentSendInline: document.getElementById("agent-send-inline"),
     responseModeChip: document.getElementById("response-mode-chip"),
     autoSendToggle: document.getElementById("auto-send-toggle"),
     sendToAgent: document.getElementById("send-to-agent"),
@@ -75,6 +76,9 @@
     navRecorder: document.getElementById("nav-recorder"),
     navEditor: document.getElementById("nav-editor"),
     navAndroid: document.getElementById("nav-android"),
+    bannerChat: document.getElementById("banner-chat"),
+    bannerMic: document.getElementById("banner-mic"),
+    bannerBot: document.getElementById("banner-bot"),
   };
 
   function loadPrefs() {
@@ -614,7 +618,11 @@
   }
 
   function renderAgentOutput(text) {
-    ui.agentOutput.innerHTML = `<p>${escapeHtml(text || "Agent output will appear here.")}</p>`;
+    if (text) {
+      ui.agentOutput.innerHTML = `<p>${escapeHtml(text)}</p>`;
+      return;
+    }
+    ui.agentOutput.innerHTML = "<p class=\"empty-box-copy\">agent response...</p>";
   }
 
   async function sendToAgent(overrides) {
@@ -725,7 +733,7 @@
     state.prefs.responseMode = ui.responseModeSelect ? ui.responseModeSelect.value : "text_only";
     savePrefs();
     renderAgentPrefs();
-    setAgentStatus(`Active model: ${ui.agentSelect.options[ui.agentSelect.selectedIndex].text}`, "agent-status-text--info");
+    setAgentStatus("");
   }
 
   function bindEvents() {
@@ -839,6 +847,12 @@
       });
     }
 
+    if (ui.agentSendInline) {
+      ui.agentSendInline.addEventListener("click", () => {
+        sendToAgent({ inputMode: "text" }).catch((error) => setAgentStatus(error.message, "agent-status-text--error"));
+      });
+    }
+
     if (ui.clearAgentOutput) {
       ui.clearAgentOutput.addEventListener("click", () => {
         stopSpeech();
@@ -897,6 +911,22 @@
       });
     }
 
+    if (ui.bannerChat) {
+      ui.bannerChat.addEventListener("click", () => {
+        window.location.href = "html_chat.html";
+      });
+    }
+    if (ui.bannerMic) {
+      ui.bannerMic.addEventListener("click", () => {
+        window.location.href = "html_redline.html";
+      });
+    }
+    if (ui.bannerBot) {
+      ui.bannerBot.addEventListener("click", () => {
+        window.location.href = "html_factory.html";
+      });
+    }
+
     ui.navChat.addEventListener("click", () => {
       window.location.href = "html_chat.html";
     });
@@ -927,11 +957,8 @@
     await hydrateAgentOptions();
     await refreshWorkspace();
     renderAgentOutput("");
-    const selectedText = ui.agentSelect.options[ui.agentSelect.selectedIndex]
-      ? ui.agentSelect.options[ui.agentSelect.selectedIndex].text
-      : "Gemini Flash";
-    setAgentStatus(`Active model: ${selectedText}`, "agent-status-text--info");
-    setStatus("Tap the mic to record into the active snippet stack.");
+    setAgentStatus("");
+    setStatus("");
   }
 
   init().catch((error) => {

@@ -25,8 +25,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 108px;
-      padding: 20px 20px 16px;
+      height: 92px;
+      min-height: 92px;
+      max-height: 92px;
+      padding: 0;
       border-bottom: 1px solid rgba(99, 255, 131, 0.14);
       background: linear-gradient(180deg, rgba(122, 255, 244, 0.1), rgba(99, 255, 131, 0.03));
     }
@@ -34,31 +36,34 @@
     .banner-center {
       display: flex;
       align-items: center;
-      gap: 42px;
+      gap: 28px;
     }
 
     .banner-actions {
       display: flex;
       align-items: center;
-      gap: 56px;
+      gap: 24px;
     }
 
     .banner-action-button {
-      width: 86px;
-      height: 86px;
+      width: 78px;
+      height: 78px;
       border-radius: 999px;
-      border: 1px solid rgba(122, 255, 244, 0.5);
+      border: 1px solid rgba(99, 255, 131, 0.62);
       background: linear-gradient(180deg, rgba(20, 32, 20, 0.95), rgba(7, 12, 7, 0.96));
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 18px rgba(122, 255, 244, 0.18);
+      box-shadow: 0 0 26px rgba(99, 255, 131, 0.34);
       cursor: pointer;
     }
 
     .banner-action-button img {
-      width: 50px;
-      height: 50px;
+      width: 44px;
+      height: 44px;
+      filter: brightness(0) saturate(100%) invert(86%) sepia(57%) saturate(641%) hue-rotate(66deg) brightness(105%) contrast(103%)
+        drop-shadow(0 0 10px rgba(99, 255, 131, 0.88))
+        drop-shadow(0 0 16px rgba(99, 255, 131, 0.48));
     }
 
     .banner-logo-wrap {
@@ -201,16 +206,19 @@
   <div class="factory-shell">
     <header class="factory-header">
       <div class="banner-center">
+        <div class="banner-logo-wrap">
+          <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT" class="banner-logo">
+        </div>
         <div class="banner-actions" aria-label="Desktop quick actions">
-          <button class="banner-action-button" type="button" aria-label="Bot">
-            <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="">
-          </button>
-          <button class="banner-action-button" type="button" aria-label="Chat">
+          <a class="banner-action-button" id="banner-chat" aria-label="Chat" href="html_chat.html" title="Open Chat">
             <img src="assets/svg-assets/lower-menu-svg-icons/L2-chat-menu.svg" alt="">
-          </button>
-          <button class="banner-action-button" type="button" aria-label="Mic">
+          </a>
+          <a class="banner-action-button" id="banner-mic" aria-label="Mic" href="html_redline.html" title="Open Chits">
             <img src="assets/svg-assets/action-menu-svg-icons/mic-classic-radio.svg" alt="">
-          </button>
+          </a>
+          <a class="banner-action-button" id="banner-bot" aria-label="Bot" href="html_factory.html" title="Open Factory">
+            <img src="assets/svg-assets/action-menu-svg-icons/robot-face-single.svg" alt="">
+          </a>
         </div>
         <div class="banner-logo-wrap">
           <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT" class="banner-logo">

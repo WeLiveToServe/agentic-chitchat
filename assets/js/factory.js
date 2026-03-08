@@ -23,6 +23,9 @@
     status: document.getElementById("factory-status"),
     openWorkspace: document.getElementById("open-workspace"),
     focusOpenclaw: document.getElementById("focus-openclaw"),
+    bannerChat: document.getElementById("banner-chat"),
+    bannerMic: document.getElementById("banner-mic"),
+    bannerBot: document.getElementById("banner-bot"),
     navChat: document.getElementById("nav-chat"),
     navProfile: document.getElementById("nav-profile"),
     navRecorder: document.getElementById("nav-recorder"),
@@ -146,6 +149,21 @@
     ui.openWorkspace.addEventListener("click", () => {
       window.location.href = "html_redline.html";
     });
+    if (ui.bannerChat) {
+      ui.bannerChat.addEventListener("click", () => {
+        window.location.href = "html_chat.html";
+      });
+    }
+    if (ui.bannerMic) {
+      ui.bannerMic.addEventListener("click", () => {
+        window.location.href = "html_redline.html";
+      });
+    }
+    if (ui.bannerBot) {
+      ui.bannerBot.addEventListener("click", () => {
+        window.location.href = "html_factory.html";
+      });
+    }
 
     ui.navChat.addEventListener("click", () => {
       window.location.href = "html_chat.html";

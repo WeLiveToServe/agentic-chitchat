@@ -49,6 +49,9 @@
     switchConversation: document.getElementById("switch-conversation"),
     openRedline: document.getElementById("open-redline"),
     openFactory: document.getElementById("open-factory"),
+    bannerChat: document.getElementById("banner-chat"),
+    bannerMic: document.getElementById("banner-mic"),
+    bannerBot: document.getElementById("banner-bot"),
     navChat: document.getElementById("nav-chat"),
     navProfile: document.getElementById("nav-profile"),
     navRecorder: document.getElementById("nav-recorder"),
@@ -149,9 +152,9 @@
       card.type = "button";
       card.className = `conversation-card${conversation.is_active ? " conversation-card--active" : ""}`;
       card.innerHTML = `
-        <p class="conversation-card__meta">${escapeHtml(conversation.transport.replace(/_/g, " "))} // ${conversation.message_count} messages</p>
         <p class="conversation-card__title">${escapeHtml(conversation.title)}</p>
-        <p class="conversation-card__meta">${escapeHtml(conversation.latest_message_preview || "Waiting for first note")}</p>
+        <p class="conversation-card__meta">${conversation.message_count} message${conversation.message_count === 1 ? "" : "s"}</p>
+        <p class="conversation-card__preview">${escapeHtml(conversation.latest_message_preview || "Waiting for first note")}</p>
       `;
       card.addEventListener("click", () => {
         activateConversation(conversation.id).catch((error) => setComposerStatus(error.message, "error"));
@@ -682,6 +685,21 @@
     }
     if (ui.openFactory) {
       ui.openFactory.addEventListener("click", () => {
+        window.location.href = "html_factory.html";
+      });
+    }
+    if (ui.bannerChat) {
+      ui.bannerChat.addEventListener("click", () => {
+        window.location.href = "html_chat.html";
+      });
+    }
+    if (ui.bannerMic) {
+      ui.bannerMic.addEventListener("click", () => {
+        window.location.href = "html_redline.html";
+      });
+    }
+    if (ui.bannerBot) {
+      ui.bannerBot.addEventListener("click", () => {
         window.location.href = "html_factory.html";
       });
     }

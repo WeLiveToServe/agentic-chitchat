@@ -8,7 +8,9 @@
   <style>
     .desktop-shell {
       width: min(98vw, 1720px);
+      height: min(94vh, 980px);
       min-height: min(94vh, 980px);
+      max-height: min(94vh, 980px);
       border-radius: 24px;
       border: 1px solid rgba(99, 255, 131, 0.24);
       background:
@@ -24,8 +26,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 108px;
-      padding: 20px 20px 16px;
+      height: 92px;
+      min-height: 92px;
+      max-height: 92px;
+      padding: 0;
       border-bottom: 1px solid rgba(99, 255, 131, 0.14);
       background: linear-gradient(180deg, rgba(122, 255, 244, 0.1), rgba(99, 255, 131, 0.03));
     }
@@ -33,31 +37,34 @@
     .banner-center {
       display: flex;
       align-items: center;
-      gap: 42px;
+      gap: 28px;
     }
 
     .banner-actions {
       display: flex;
       align-items: center;
-      gap: 56px;
+      gap: 24px;
     }
 
     .banner-action-button {
-      width: 86px;
-      height: 86px;
+      width: 78px;
+      height: 78px;
       border-radius: 999px;
-      border: 1px solid rgba(122, 255, 244, 0.5);
+      border: 1px solid rgba(99, 255, 131, 0.62);
       background: linear-gradient(180deg, rgba(20, 32, 20, 0.95), rgba(7, 12, 7, 0.96));
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 18px rgba(122, 255, 244, 0.18);
+      box-shadow: 0 0 26px rgba(99, 255, 131, 0.34);
       cursor: pointer;
     }
 
     .banner-action-button img {
-      width: 50px;
-      height: 50px;
+      width: 44px;
+      height: 44px;
+      filter: brightness(0) saturate(100%) invert(86%) sepia(57%) saturate(641%) hue-rotate(66deg) brightness(105%) contrast(103%)
+        drop-shadow(0 0 10px rgba(99, 255, 131, 0.88))
+        drop-shadow(0 0 16px rgba(99, 255, 131, 0.48));
     }
 
     .banner-logo-wrap {
@@ -81,6 +88,11 @@
       gap: 12px;
       padding: 14px;
       overflow-x: auto;
+      align-items: stretch;
+    }
+
+    .desktop-grid > .pane {
+      height: 100%;
     }
 
     .pane {
@@ -107,10 +119,17 @@
     .thread-list,
     .snippet-list {
       min-height: 0;
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 8px;
+    }
+
+    .thread-list {
+      overflow-y: scroll;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(122, 255, 244, 0.5) rgba(5, 8, 5, 0.55);
     }
 
     .snippet-separator {
@@ -183,7 +202,7 @@
     .snippet-card__text {
       margin: 0;
       line-height: 1.55;
-      font-size: 0.82rem;
+      font-size: 18px;
       white-space: pre-wrap;
     }
 
@@ -196,7 +215,7 @@
     .thread-card__preview {
       margin: 5px 0 0;
       color: var(--text-soft);
-      font-size: 0.67rem;
+      font-size: 18px;
       letter-spacing: 0.1em;
       text-transform: uppercase;
     }
@@ -250,7 +269,7 @@
       background: rgba(5, 8, 5, 0.9);
       color: var(--text-main);
       padding: 16px 18px 228px 18px;
-      font-size: 0.96rem;
+      font-size: 18px;
       line-height: 1.64;
       resize: none;
     }
@@ -280,14 +299,14 @@
       bottom: 16px;
       z-index: 7;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       align-items: center;
       gap: 8px;
     }
 
     .snippet-editor-quick-actions .action-button {
-      min-height: 36px;
-      font-size: 0.63rem;
+      min-height: 50px;
+      font-size: 18px;
       letter-spacing: 0.1em;
       padding: 0 10px;
       white-space: nowrap;
@@ -363,8 +382,33 @@
       border: 1px solid rgba(122, 255, 244, 0.2);
       background: rgba(5, 8, 5, 0.86);
       color: var(--text-main);
-      padding: 12px 14px;
+      padding: 12px 56px 12px 14px;
       line-height: 1.56;
+      font-size: 18px;
+    }
+
+    .agent-input-wrap {
+      position: relative;
+    }
+
+    .agent-send-inline {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      width: 50px;
+      height: 50px;
+      border-radius: 999px;
+      border: 1px solid rgba(122, 255, 244, 0.42);
+      background: linear-gradient(180deg, rgba(20, 32, 20, 0.95), rgba(7, 12, 7, 0.96));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .agent-send-inline img {
+      width: 24px;
+      height: 24px;
     }
 
     .agent-output {
@@ -379,6 +423,10 @@
     .pane--chats,
     .pane--chits {
       grid-template-rows: auto 1fr;
+    }
+
+    .pane--agents {
+      grid-template-rows: auto auto 1fr;
     }
 
     .pane--chits .snippet-editor-wrap {
@@ -396,11 +444,32 @@
       display: none;
     }
 
+    .pane--agents .agent-output {
+      min-height: 0;
+      height: 100%;
+    }
+
+    #agent-status,
+    #status-text {
+      display: none;
+    }
+
     .agent-output p {
       margin: 0;
       white-space: pre-wrap;
       line-height: 1.62;
-      font-size: 0.9rem;
+      font-size: 18px;
+    }
+
+    .empty-box-copy {
+      font-size: 15px;
+      color: rgba(186, 255, 199, 0.34);
+    }
+
+    .snippet-editor::placeholder,
+    .agent-input::placeholder {
+      color: rgba(186, 255, 199, 0.46);
+      font-size: 15px;
     }
 
     .status-inline {
@@ -453,16 +522,19 @@
   <div class="desktop-shell">
     <header class="desktop-header">
       <div class="banner-center">
+        <div class="banner-logo-wrap">
+          <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT" class="banner-logo">
+        </div>
         <div class="banner-actions" aria-label="Desktop quick actions">
-          <button class="banner-action-button" type="button" id="banner-bot" aria-label="Bot">
-            <img src="assets/svg-assets/lower-menu-svg-icons/agent-factory-nav.svg" alt="">
-          </button>
-          <button class="banner-action-button" type="button" id="banner-chat" aria-label="Chat">
+          <a class="banner-action-button" id="banner-chat" aria-label="Chat" href="html_chat.html" title="Open Chat">
             <img src="assets/svg-assets/lower-menu-svg-icons/L2-chat-menu.svg" alt="">
-          </button>
-          <button class="banner-action-button" type="button" id="banner-mic" aria-label="Mic">
+          </a>
+          <a class="banner-action-button" id="banner-mic" aria-label="Mic" href="html_redline.html" title="Open Chits">
             <img src="assets/svg-assets/action-menu-svg-icons/mic-classic-radio.svg" alt="">
-          </button>
+          </a>
+          <a class="banner-action-button" id="banner-bot" aria-label="Bot" href="html_factory.html" title="Open Factory">
+            <img src="assets/svg-assets/action-menu-svg-icons/robot-face-single.svg" alt="">
+          </a>
         </div>
         <div class="banner-logo-wrap">
           <img src="assets/ico-png-assets/png-logo-assets/whisptt-logo-corners-tinted.png" alt="WhisPTT" class="banner-logo">
@@ -484,7 +556,7 @@
         <h2>Chits</h2>
         <div class="snippet-editor-wrap">
           <input id="thread-title-input" class="snippet-title-input" type="text" placeholder="Chat title">
-          <textarea id="snippet-editor" class="snippet-editor" placeholder="Select a snippet to edit, or type text and add a new snippet."></textarea>
+          <textarea id="snippet-editor" class="snippet-editor" placeholder="chits and threads..."></textarea>
           <div id="editor-caret-hint" class="editor-caret-hint">|</div>
           <div class="snippet-editor-icon-row">
             <button class="snippet-editor-mini" type="button" id="snippet-copy-inline" aria-label="Copy text">
@@ -505,13 +577,13 @@
           </div>
         </div>
         <div class="snippet-list" id="snippet-list"></div>
-        <p class="transcription-placeholder" id="snippet-placeholder">Record or add text to begin.</p>
-        <p class="status-inline" id="editor-status">Edits are saved in place for the selected snippet.</p>
+        <p class="transcription-placeholder" id="snippet-placeholder"></p>
+        <p class="status-inline" id="editor-status"></p>
       </section>
 
-      <section class="pane">
+      <section class="pane pane--agents">
         <h2>Agents</h2>
-        <div class="agent-controls">
+          <div class="agent-controls">
           <label>
             <span class="panel-kicker">Agent</span>
             <select id="agent-select"></select>
@@ -524,14 +596,18 @@
             </select>
           </label>
           <label>
-            <span class="panel-kicker">Dispatch Input</span>
-            <textarea id="agent-input" class="agent-input" placeholder="Snippet or thread text to dispatch appears here. You can paste or edit before sending."></textarea>
+            <div class="agent-input-wrap">
+              <textarea id="agent-input" class="agent-input" placeholder="agent queue..."></textarea>
+              <button class="agent-send-inline" type="button" id="agent-send-inline" aria-label="Send queued input">
+                <img src="assets/svg-assets/action-menu-svg-icons/send.svg" alt="">
+              </button>
+            </div>
           </label>
         </div>
         <div class="agent-output" id="agent-output">
-          <p>Agent output will appear here.</p>
+          <p class="empty-box-copy">agent response...</p>
         </div>
-        <p class="status-inline" id="agent-status">Use local agents for current testing.</p>
+        <p class="status-inline" id="agent-status"></p>
       </section>
     </main>
 
@@ -552,7 +628,7 @@
         <img src="assets/svg-assets/lower-menu-svg-icons/R2-android-menu.svg" alt="Android" class="bottom-nav__icon">
       </button>
     </div>
-    <p class="status-inline" id="status-text" style="padding: 0 14px 12px;">Tap the mic to record into the active snippet stack.</p>
+    <p class="status-inline" id="status-text" style="padding: 0 14px 12px;"></p>
   </div>
 
   <script src="assets/js/redline_workspace.js"></script>
